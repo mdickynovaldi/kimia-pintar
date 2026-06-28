@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengaturan · Admin Kimia Pintar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .set-row { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .set-row:last-child { border-bottom:0; }
+  .set-row .copy { flex:1; min-width:0; }
+  .set-row .copy .t { font-weight:600; }
+  .set-row .copy .h { font-size:12.5px; color:var(--faint); margin-top:2px; }
+  .save-bar { position:sticky; bottom:0; background:color-mix(in oklch, var(--bg) 86%, transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--border); padding:14px clamp(18px,3vw,34px); margin:24px -34px -34px; display:flex; justify-content:flex-end; gap:10px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="sidebar-scrim"></div>
+  <aside class="sidebar">
+    <span class="brand"><span class="logo" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/><path d="M7 14h10"/></svg>
+    </span>Kimia Pintar <span class="badge accent">Admin</span></span>
+
+    <a class="nav-item" href="admin-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dasbor</a>
+    <a class="nav-item" href="admin-courses.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2z"/><path d="M9 7h5"/></svg>Mata Kuliah</a>
+    <a class="nav-item" href="admin-students.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 21a6 6 0 0 1 12 0"/><path d="M16 4a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3 5"/></svg>Siswa</a>
+    <a class="nav-item" href="admin-enrollments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 13l2 2 4-4"/></svg>Pendaftaran</a>
+    <a class="nav-item" href="admin-gradebook.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 4 3 5-7"/></svg>Buku Nilai</a>
+    <a class="nav-item active" href="admin-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pengaturan</a>
+
+    <div class="nav-label">Akun</div>
+    <div class="sidebar-foot">
+      <a class="nav-item" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>Lihat sebagai siswa</a>
+      <a class="nav-item" href="login.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Keluar</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" data-menu aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <span class="crumb">Admin · <b>Pengaturan</b></span>
+      <span class="spacer"></span>
+      <button class="icon-btn theme-toggle" data-theme-toggle aria-label="Ganti tema">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <div class="avatar" title="Bu Maya">BM</div>
+    </header>
+
+    <div class="content narrow">
+      <div class="page-head">
+        <h1>Pengaturan Platform</h1>
+        <p>Konfigurasi global untuk Kimia Pintar — identitas situs, registrasi, dan kebijakan kuis default.</p>
+      </div>
+
+      <div class="stack" style="gap:18px">
+
+        <div class="card">
+          <div class="card-head"><h3>Umum</h3></div>
+          <div class="card-pad">
+            <div class="field">
+              <label for="site-name">Nama situs</label>
+              <input class="input" id="site-name" type="text" value="Kimia Pintar">
+            </div>
+            <div class="field">
+              <label for="domain">Domain</label>
+              <input class="input" id="domain" type="text" value="kimiapintar.com">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="lang">Bahasa</label>
+              <select class="select" id="lang">
+                <option selected>Bahasa Indonesia</option>
+                <option>English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Registrasi</h3></div>
+          <div class="card-pad" style="padding-top:6px">
+            <div class="set-row">
+              <div class="copy">
+                <div class="t">Izinkan registrasi mandiri siswa</div>
+                <div class="h">Siswa dapat membuat akun sendiri tanpa diundang admin.</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+            </div>
+            <div class="set-row">
+              <div class="copy">
+                <div class="t">Wajib persetujuan admin untuk akun baru</div>
+                <div class="h">Per PRD Open Question §18 — bila aktif, akun baru tertahan hingga disetujui Bu Maya sebelum dapat masuk.</div>
+              </div>
+              <label class="switch"><input type="checkbox"><span class="track"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Kebijakan kuis default</h3></div>
+          <div class="card-pad">
+            <div class="field">
+              <label for="passing">Skor lulus (passing_score)</label>
+              <input class="input" id="passing" type="number" value="60" min="0" max="100">
+              <span class="hint">Nilai minimum agar percobaan dianggap lulus.</span>
+            </div>
+            <div class="field">
+              <label for="grade-method">Metode nilai default</label>
+              <select class="select" id="grade-method">
+                <option value="highest" selected>Skor tertinggi (highest)</option>
+                <option value="latest">Percobaan terakhir (latest)</option>
+                <option value="average">Rata-rata (average)</option>
+                <option value="first">Percobaan pertama (first)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="show-answers">Tampilkan jawaban benar</label>
+              <select class="select" id="show-answers">
+                <option value="never">Tidak pernah (never)</option>
+                <option value="after_submit" selected>Setelah submit (after_submit)</option>
+                <option value="after_close">Setelah kuis ditutup (after_close)</option>
+              </select>
+            </div>
+            <div class="set-row" style="border-top:1px solid var(--border);border-bottom:0;padding-bottom:0">
+              <div class="copy">
+                <div class="t">Tampilkan skor langsung</div>
+                <div class="h">Siswa melihat skor segera setelah menyelesaikan percobaan.</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Tentang</h3></div>
+          <div class="card-pad" style="padding-top:6px">
+            <div class="set-row">
+              <div class="copy"><div class="t">Versi</div></div>
+              <span class="mono muted">2.0</span>
+            </div>
+            <div class="set-row">
+              <div class="copy"><div class="t">Stack</div></div>
+              <span class="muted">Next.js + Supabase</span>
+            </div>
+            <div class="set-row">
+              <div class="copy"><div class="t">Admin</div></div>
+              <span class="muted">Bu Maya</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="save-bar">
+        <button class="btn btn-ghost" type="button">Batal</button>
+        <button class="btn btn-primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Simpan pengaturan</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

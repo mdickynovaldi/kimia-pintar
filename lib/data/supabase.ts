@@ -1,0 +1,394 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { hasServiceRole } from "@/lib/supabase/env";
+import { getSessionUser } from "@/lib/auth/dal";
+import {
+  attemptStatusLabel,
+  rowToCourse,
+  rowToMaterial,
+  rowToMeeting,
+  rowToProfile,
+  rowToQuestion,
+  rowToQuiz,
+  rowToVideo,
+} from "./map";
+import type {
+  Course,
+  GradebookRow,
+  Meeting,
+  Profile,
+  Question,
+  Quiz,
+  QuizAttempt,
+  ResultRow,
+} from "./types";
+
+type Row = Record<string, unknown>;
+
+// ---- helpers ---------------------------------------------------------------
+
+/** Quiz ids the current user has a graded attempt on (→ meeting "completed"). */
+async function completedQuizIds(): Promise<Set<string>> {
+  const user = await getSessionUser();
+  if (!user) return new Set();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("quiz_attempts")
+    .select("quiz_id, status")
+    .eq("student_id", user.id)
+    .eq("status", "graded");
+  return new Set((data ?? []).map((r) => r.quiz_id as string));
+}
+
+// ---- courses ---------------------------------------------------------------
+
+export async function getCourses(): Promise<Course[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("courses")
+    .select("*, meetings(count), quizzes(count)")
+    .order("sort_order");
+  return (data ?? []).map((row: Row) =>
+    rowToCourse(
+      row,
+      ((row.meetings as Array<{ count: number }>)?.[0]?.count) ?? 0,
+      ((row.quizzes as Array<{ count: number }>)?.[0]?.count) ?? 0,
+    ),
+  );
+}
+
+export async function getPublishedCourses(): Promise<Course[]> {
+  return (await getCourses()).filter((c) => c.isPublished);
+}
+
+export async function getCourse(slug: string): Promise<Course | undefined> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("courses")
+    .select("*, meetings(count), quizzes(count)")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!data) return undefined;
+  return rowToCourse(
+    data,
+    ((data.meetings as Array<{ count: number }>)?.[0]?.count) ?? 0,
+    ((data.quizzes as Array<{ count: number }>)?.[0]?.count) ?? 0,
+  );
+}
+
+// ---- meetings --------------------------------------------------------------
+
+export async function getMeetings(courseSlug: string): Promise<Meeting[]> {
+  const supabase = await createClient();
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("slug", courseSlug)
+    .maybeSingle();
+  if (!course) return [];
+
+  const { data: rows } = await supabase
+    .from("meetings")
+    .select("*, quizzes(id)")
+    .eq("course_id", course.id)
+    .order("sort_order");
+
+  const completed = await completedQuizIds();
+
+  return (rows ?? []).map((row: Row) => {
+    const quizId = (row.quizzes as Array<{ id: string }>)?.[0]?.id ?? null;
+    const isCompleted = quizId ? completed.has(quizId) : false;
+    const published = (row.is_published as boolean) ?? false;
+    const state = isCompleted ? "completed" : published ? "available" : "locked";
+    return rowToMeeting(row, { courseSlug, state, quizId });
+  });
+}
+
+export async function getMeeting(
+  courseSlug: string,
+  meetingSlug: string,
+): Promise<Meeting | undefined> {
+  const supabase = await createClient();
+  const { data: course } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("slug", courseSlug)
+    .maybeSingle();
+  if (!course) return undefined;
+
+  const { data: m } = await supabase
+    .from("meetings")
+    .select("*")
+    .eq("course_id", course.id)
+    .eq("slug", meetingSlug)
+    .maybeSingle();
+  if (!m) return undefined;
+
+  const [{ data: materials }, { data: videos }, { data: quiz }] =
+    await Promise.all([
+      supabase.from("materials").select("*").eq("meeting_id", m.id).order("sort_order"),
+      supabase.from("videos").select("*").eq("meeting_id", m.id).order("sort_order"),
+      supabase.from("quizzes").select("id").eq("meeting_id", m.id).maybeSingle(),
+    ]);
+
+  const completed = await completedQuizIds();
+  const quizId = (quiz?.id as string) ?? null;
+  const published = (m.is_published as boolean) ?? false;
+  const state = quizId && completed.has(quizId)
+    ? "completed"
+    : published
+      ? "available"
+      : "locked";
+
+  return rowToMeeting(m, {
+    courseSlug,
+    state,
+    quizId,
+    materials: (materials ?? []).map(rowToMaterial),
+    videos: (videos ?? []).map(rowToVideo),
+  });
+}
+
+// ---- quizzes ---------------------------------------------------------------
+
+/** Full quiz WITH answer keys — admin/owner server use only (RLS-guarded). */
+export async function getQuiz(quizId: string): Promise<Quiz | undefined> {
+  const supabase = await createClient();
+  const { data: q } = await supabase
+    .from("quizzes")
+    .select("*, meetings(slug), courses(slug)")
+    .eq("id", quizId)
+    .maybeSingle();
+  if (!q) return undefined;
+
+  const meetingSlug =
+    (q.meetings as { slug?: string } | null)?.slug ?? "";
+  const courseSlug = (q.courses as { slug?: string } | null)?.slug ?? "";
+
+  // question_options is admin-only via RLS; use the service-role client when
+  // available so the admin builder + result review can read keys server-side.
+  const reader = hasServiceRole ? createAdminClient() : supabase;
+  const { data: questions } = await reader
+    .from("questions")
+    .select("*, question_options(*)")
+    .eq("quiz_id", quizId)
+    .order("sort_order");
+
+  const mapped: Question[] = (questions ?? []).map((row: Row) =>
+    rowToQuestion({ ...row, options: row.question_options }),
+  );
+
+  return rowToQuiz(q, { courseSlug, meetingSlug, questions: mapped });
+}
+
+/** Sanitized questions for the student player — NO `is_correct`. Uses the RPC. */
+export async function getSanitizedQuestions(
+  quizId: string,
+): Promise<Question[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("get_quiz_questions", { p_quiz: quizId });
+  const arr = (data as Row[]) ?? [];
+  return arr.map((row) =>
+    rowToQuestion({
+      ...row,
+      // RPC already omits is_correct; options come through without keys.
+    }),
+  );
+}
+
+// ---- attempts --------------------------------------------------------------
+
+export async function getAttempt(attemptId: string): Promise<QuizAttempt | null> {
+  const supabase = await createClient();
+  const user = await getSessionUser();
+
+  const { data: a } = await supabase
+    .from("quiz_attempts")
+    .select("*, quizzes(show_correct_answers, passing_score)")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (!a) return null;
+
+  // ownership guard (RLS already enforces this; double-check in code)
+  if (user && a.student_id !== user.id && user.role !== "admin") return null;
+
+  const policy =
+    (a.quizzes as { show_correct_answers?: string } | null)
+      ?.show_correct_answers ?? "after_submit";
+  const reveal = policy === "after_submit" || policy === "after_close";
+
+  const { data: answers } = await supabase
+    .from("attempt_answers")
+    .select("*, questions(prompt, explanation, sort_order)")
+    .eq("attempt_id", attemptId);
+
+  // Correct-answer text needs the keys (admin-only); fetch server-side when
+  // policy allows revealing them.
+  const correctById = new Map<string, string>();
+  if (reveal && hasServiceRole) {
+    const admin = createAdminClient();
+    const qIds = (answers ?? []).map((x) => x.question_id as string);
+    if (qIds.length) {
+      const { data: opts } = await admin
+        .from("question_options")
+        .select("question_id, content, is_correct")
+        .in("question_id", qIds)
+        .eq("is_correct", true);
+      const grouped = new Map<string, string[]>();
+      for (const o of opts ?? []) {
+        const arr = grouped.get(o.question_id as string) ?? [];
+        arr.push(o.content as string);
+        grouped.set(o.question_id as string, arr);
+      }
+      for (const [qid, contents] of grouped) correctById.set(qid, contents.join(", "));
+    }
+  }
+
+  const review = (answers ?? [])
+    .sort(
+      (x, y) =>
+        ((x.questions as { sort_order?: number })?.sort_order ?? 0) -
+        ((y.questions as { sort_order?: number })?.sort_order ?? 0),
+    )
+    .map((row) => {
+      const q = row.questions as { prompt?: string; explanation?: string } | null;
+      return {
+        questionId: row.question_id as string,
+        prompt: q?.prompt ?? "",
+        given: (row.answer_text as string) ?? "—",
+        correct: correctById.get(row.question_id as string) ?? "—",
+        isCorrect: (row.is_correct as boolean) ?? false,
+        explanation: reveal ? q?.explanation ?? undefined : undefined,
+      };
+    });
+
+  const attempt: QuizAttempt = {
+    id: a.id as string,
+    quizId: a.quiz_id as string,
+    studentId: a.student_id as string,
+    attemptNumber: (a.attempt_number as number) ?? 1,
+    status: a.status as QuizAttempt["status"],
+    score: (a.score as number | null) ?? null,
+    maxScore: (a.max_score as number | null) ?? null,
+    percentage: (a.percentage as number | null) ?? null,
+    passed: (a.passed as boolean | null) ?? null,
+    correctCount: review.filter((r) => r.isCorrect).length,
+    questionCount: review.length,
+    timeSpentLabel: secondsToLabel(a.time_spent_seconds as number | null),
+    startedAt: (a.started_at as string) ?? "",
+    submittedAt: (a.submitted_at as string | null) ?? null,
+    review,
+  };
+  return attempt;
+}
+
+function secondsToLabel(s: number | null): string {
+  if (!s || s < 0) return "—";
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec < 10 ? "0" : ""}${sec}`;
+}
+
+// ---- students / enrollments ------------------------------------------------
+
+export async function getStudents(): Promise<Profile[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("role", "student")
+    .order("full_name");
+  return (data ?? []).map((r: Row) => rowToProfile(r));
+}
+
+export async function getEnrollments() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("enrollments").select("*");
+  return (data ?? []).map((r: Row) => ({
+    id: r.id as string,
+    courseId: r.course_id as string,
+    studentId: r.student_id as string,
+    status: r.status as "active" | "completed" | "dropped",
+    enrolledAt: (r.enrolled_at as string) ?? "",
+  }));
+}
+
+// ---- gradebook + results ---------------------------------------------------
+
+export async function getGradebook(): Promise<GradebookRow[]> {
+  const supabase = await createClient();
+  const [{ data: students }, { data: attempts }, { data: quizzes }] =
+    await Promise.all([
+      supabase.from("profiles").select("id, full_name, student_no").eq("role", "student"),
+      supabase.from("quiz_attempts").select("student_id, quiz_id, percentage, status"),
+      supabase.from("quizzes").select("id, meetings(sort_order)"),
+    ]);
+
+  const quizLabel = new Map<string, string>();
+  for (const q of quizzes ?? []) {
+    const order = (q.meetings as { sort_order?: number } | null)?.sort_order;
+    if (order) quizLabel.set(q.id as string, `P${order}`);
+  }
+
+  return (students ?? []).map((s) => {
+    const scores: Record<string, number | null> = {};
+    const mine = (attempts ?? []).filter(
+      (a) => a.student_id === s.id && a.status === "graded",
+    );
+    for (const a of mine) {
+      const label = quizLabel.get(a.quiz_id as string);
+      if (label) scores[label] = Math.round(Number(a.percentage ?? 0));
+    }
+    const vals = Object.values(scores).filter((v): v is number => v != null);
+    const average = vals.length
+      ? Math.round(vals.reduce((x, y) => x + y, 0) / vals.length)
+      : null;
+    return {
+      studentId: s.id as string,
+      studentName: s.full_name as string,
+      studentNo: (s.student_no as string) ?? "—",
+      quizScores: scores,
+      average,
+    };
+  });
+}
+
+export async function getMyResults(): Promise<ResultRow[]> {
+  const user = await getSessionUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("quiz_attempts")
+    .select(
+      "id, percentage, passed, status, quiz_id, quizzes(passing_score, title, meetings(sort_order, title, courses(title)))",
+    )
+    .eq("student_id", user.id)
+    .order("started_at");
+
+  return (data ?? []).map((a) => {
+    const quiz = a.quizzes as {
+      title?: string;
+      meetings?: { sort_order?: number; title?: string; courses?: { title?: string } };
+    } | null;
+    const order = quiz?.meetings?.sort_order ?? 0;
+    const score = a.percentage != null ? Math.round(Number(a.percentage)) : null;
+    const status =
+      a.status !== "graded"
+        ? ("belum-dikerjakan" as const)
+        : a.passed
+          ? ("lulus" as const)
+          : ("belum-lulus" as const);
+    return {
+      courseTitle: quiz?.meetings?.courses?.title ?? "Kimia Dasar",
+      meetingLabel: `Pertemuan ${order}`,
+      meetingTitle: quiz?.meetings?.title ?? quiz?.title ?? "",
+      quizId: a.quiz_id as string,
+      attemptId: a.id as string,
+      score,
+      status,
+    };
+  });
+}
+
+export { attemptStatusLabel };

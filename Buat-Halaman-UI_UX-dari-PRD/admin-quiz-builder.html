@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pembuat Kuis · Admin Kimia Pintar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .head-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  @media (max-width: 620px) { .form-grid { grid-template-columns: 1fr; } }
+  .switch-field { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface-2); margin-bottom: 12px; }
+  .switch-field .lbl { font-size: 13.5px; font-weight: 600; }
+  .switch-field .hint { font-size: 11.5px; color: var(--faint); margin-top: 1px; }
+  .type-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .type-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); color: var(--fg); font: 600 13px/1 var(--font-body); cursor: pointer; }
+  .type-chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+  .type-chip svg { width: 14px; height: 14px; }
+
+  .q-card { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+  .q-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .q-head .grab { cursor: grab; color: var(--faint); display: grid; place-items: center; flex: none; }
+  .q-head .grab:active { cursor: grabbing; }
+  .q-head .num { font: 700 13px/1 var(--font-mono); color: var(--muted); }
+  .q-head .spacer { flex: 1; }
+  .q-body { padding: 16px; }
+  .prompt-box { width: 100%; padding: 11px 13px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: var(--surface-2); color: var(--fg-strong); font: 600 15px/1.45 var(--font-body); min-height: 46px; }
+  .prompt-box:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--surface); }
+  .opt-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 8px; background: var(--surface); }
+  .opt-row.correct { border-color: var(--success); background: var(--success-soft); }
+  .opt-row .mark { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .opt-row .opt-input { flex: 1; border: 0; background: transparent; color: var(--fg); font: 14px/1.4 var(--font-body); padding: 4px 2px; }
+  .opt-row .opt-input:focus { outline: none; }
+  .opt-row .tag-ok { font: 600 11px/1 var(--font-body); color: var(--success); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex: none; }
+  .opt-row .tag-ok svg { width: 13px; height: 13px; }
+  .opt-row .del { width: 30px; height: 30px; border: 0; background: transparent; color: var(--faint); border-radius: 6px; cursor: pointer; display: grid; place-items: center; flex: none; }
+  .opt-row .del:hover { color: var(--danger); background: var(--danger-soft); }
+  .pts { width: 92px; }
+  .q-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  .sticky-bar { position: sticky; bottom: 0; margin: 22px 0 -2px; padding: 14px clamp(4px,2vw,18px); background: color-mix(in oklch, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; z-index: 20; }
+  .pts-field { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .pts-field .input { width: 76px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="sidebar-scrim"></div>
+  <aside class="sidebar">
+    <span class="brand"><span class="logo" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/><path d="M7 14h10"/></svg>
+    </span>Kimia Pintar <span class="badge accent">Admin</span></span>
+
+    <a class="nav-item" href="admin-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dasbor</a>
+    <a class="nav-item active" href="admin-courses.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2z"/><path d="M9 7h5"/></svg>Mata Kuliah</a>
+    <a class="nav-item" href="admin-students.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5a3.5 3.5 0 0 1 0 7M21 20a6 6 0 0 0-4-5.6"/></svg>Siswa</a>
+    <a class="nav-item" href="admin-enrollments.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Pendaftaran</a>
+    <a class="nav-item" href="admin-gradebook.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 4 3 5-7"/></svg>Buku Nilai</a>
+    <a class="nav-item" href="admin-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 7 2.6h.1A1.7 1.7 0 0 0 9 1.1V1a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 17 2.6a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1A1.7 1.7 0 0 0 22.9 11H23a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Pengaturan</a>
+
+    <div class="sidebar-foot">
+      <a class="nav-item" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Lihat sebagai siswa</a>
+      <a class="nav-item" href="login.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Keluar</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" data-menu aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <span class="crumb"><a href="admin-courses.html">Mata Kuliah</a> / <a href="admin-course-edit.html">Kimia Dasar</a> / <b>Kuis Pertemuan 4</b></span>
+      <span class="spacer"></span>
+      <button class="icon-btn theme-toggle" data-theme-toggle aria-label="Ganti tema">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <div class="avatar" title="Bu Maya">BM</div>
+    </header>
+
+    <div class="content">
+      <div class="page-head">
+        <h1>Pembuat Kuis</h1>
+        <p>Kuis Pertemuan 4 — Termokimia · Kimia Dasar</p>
+      </div>
+
+      <!-- SETTINGS -->
+      <section class="card" style="margin-bottom:20px">
+        <div class="card-head"><h3>Setelan kuis</h3><span class="spacer"></span><span class="badge accent">4 soal</span></div>
+        <div class="card-pad">
+          <div class="field">
+            <label for="s-judul">Judul</label>
+            <input class="input" id="s-judul" type="text" value="Kuis Pertemuan 4 — Termokimia">
+          </div>
+          <div class="field">
+            <label for="s-desk">Deskripsi</label>
+            <textarea class="textarea" id="s-desk" style="min-height:70px">Evaluasi pemahaman entalpi, reaksi eksoterm-endoterm, dan Hukum Hess.</textarea>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="s-waktu">Batas waktu (menit)</label>
+              <input class="input mono" id="s-waktu" type="number" value="20" min="0">
+            </div>
+            <div class="field">
+              <label for="s-coba">Maks. percobaan</label>
+              <input class="input mono" id="s-coba" type="number" value="1" min="0">
+              <span class="hint">kosongkan = tak terbatas</span>
+            </div>
+            <div class="field">
+              <label for="s-lulus">Nilai lulus (%)</label>
+              <input class="input mono" id="s-lulus" type="number" value="60" min="0" max="100">
+            </div>
+            <div class="field">
+              <label for="s-metode">Metode penilaian</label>
+              <select class="select" id="s-metode">
+                <option selected>Tertinggi</option>
+                <option>Terakhir</option>
+                <option>Rata-rata</option>
+                <option>Pertama</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="s-reveal">Tampilkan jawaban benar</label>
+              <select class="select" id="s-reveal">
+                <option>Tidak pernah</option>
+                <option selected>Setelah submit</option>
+                <option>Setelah ditutup</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="s-perpage">Soal per halaman</label>
+              <input class="input mono" id="s-perpage" type="number" value="1" min="1">
+            </div>
+            <div class="field">
+              <label for="s-from">Tersedia dari</label>
+              <input class="input" id="s-from" type="datetime-local" value="2026-06-20T08:00">
+            </div>
+            <div class="field">
+              <label for="s-to">Tersedia sampai</label>
+              <input class="input" id="s-to" type="datetime-local" value="2026-06-24T23:59">
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top:4px">
+            <div class="switch-field">
+              <div><div class="lbl">Acak soal</div></div>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+            </div>
+            <div class="switch-field">
+              <div><div class="lbl">Acak pilihan</div></div>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+            </div>
+            <div class="switch-field">
+              <div><div class="lbl">Tampilkan skor langsung</div></div>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+            </div>
+            <div class="switch-field">
+              <div><div class="lbl">Boleh kembali</div><div class="hint">izinkan navigasi ke soal sebelumnya</div></div>
+              <label class="switch"><input type="checkbox"><span class="track"></span></label>
+            </div>
+          </div>
+
+          <div class="switch-field" style="margin-bottom:0;background:var(--accent-soft);border-color:transparent">
+            <div><div class="lbl">Terbitkan kuis</div><div class="hint">tampil ke siswa setelah disimpan</div></div>
+            <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUESTION BUILDER -->
+      <section class="card">
+        <div class="card-head"><h3>Bank soal</h3><span class="spacer"></span>
+          <details style="position:relative">
+            <summary class="btn btn-primary btn-sm" style="list-style:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Tambah soal</summary>
+          </details>
+        </div>
+        <div class="card-pad">
+          <div class="row gap-sm" style="margin-bottom:18px;flex-wrap:wrap">
+            <span class="faint" style="font-size:12.5px;font-weight:600;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">Tambah soal</span>
+            <div class="type-chips">
+              <button class="type-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>Pilihan tunggal</button>
+              <button class="type-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg>Pilihan ganda</button>
+              <button class="type-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>Benar/Salah</button>
+              <button class="type-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg>Isian singkat</button>
+              <button class="type-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h16M4 18h11"/></svg>Esai</button>
+            </div>
+          </div>
+
+          <!-- Q1: single_choice -->
+          <div class="q-card">
+            <div class="q-head">
+              <span class="grab" aria-label="Seret"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+              <span class="num">Soal 1</span>
+              <span class="badge accent">Pilihan tunggal</span>
+              <span class="spacer"></span>
+              <button class="icon-btn" aria-label="Hapus soal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+            </div>
+            <div class="q-body">
+              <div class="prompt-box" contenteditable="true" role="textbox" aria-label="Pertanyaan">Reaksi yang melepaskan kalor ke lingkungan dan memiliki ΔH bernilai negatif disebut reaksi…</div>
+              <div style="margin-top:14px">
+                <div class="opt-row"><input class="mark" type="radio" name="q1" aria-label="Tandai benar"><input class="opt-input" type="text" value="Endoterm"><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row correct"><input class="mark" type="radio" name="q1" checked aria-label="Tandai benar"><input class="opt-input" type="text" value="Eksoterm"><span class="tag-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>benar</span><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><input class="mark" type="radio" name="q1" aria-label="Tandai benar"><input class="opt-input" type="text" value="Isotermal"><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><input class="mark" type="radio" name="q1" aria-label="Tandai benar"><input class="opt-input" type="text" value="Adiabatik"><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <button class="btn btn-sm btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Tambah pilihan</button>
+              </div>
+              <div class="field" style="margin:16px 0 0">
+                <label>Pembahasan</label>
+                <textarea class="textarea" style="min-height:64px">Reaksi eksoterm melepas kalor sehingga entalpi produk lebih rendah dari reaktan, ΔH < 0.</textarea>
+              </div>
+            </div>
+            <div class="q-foot">
+              <label class="pts-field">Poin <input class="input mono pts" type="number" value="10" min="0"></label>
+              <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>Hapus soal</button>
+            </div>
+          </div>
+
+          <!-- Q2: multiple_choice -->
+          <div class="q-card">
+            <div class="q-head">
+              <span class="grab" aria-label="Seret"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+              <span class="num">Soal 2</span>
+              <span class="badge info">Pilihan ganda</span>
+              <span class="spacer"></span>
+              <button class="icon-btn" aria-label="Hapus soal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+            </div>
+            <div class="q-body">
+              <div class="prompt-box" contenteditable="true" role="textbox" aria-label="Pertanyaan">Manakah pernyataan yang BENAR tentang reaksi endoterm? (pilih dua)</div>
+              <div style="margin-top:14px">
+                <div class="opt-row correct"><input class="mark" type="checkbox" checked aria-label="Tandai benar"><input class="opt-input" type="text" value="Menyerap kalor dari lingkungan"><span class="tag-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>benar</span><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row correct"><input class="mark" type="checkbox" checked aria-label="Tandai benar"><input class="opt-input" type="text" value="Nilai ΔH positif"><span class="tag-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>benar</span><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><input class="mark" type="checkbox" aria-label="Tandai benar"><input class="opt-input" type="text" value="Suhu lingkungan naik"><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><input class="mark" type="checkbox" aria-label="Tandai benar"><input class="opt-input" type="text" value="Entalpi produk lebih rendah dari reaktan"><button class="del" aria-label="Hapus pilihan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <button class="btn btn-sm btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Tambah pilihan</button>
+              </div>
+              <div class="field" style="margin:16px 0 0">
+                <label>Pembahasan</label>
+                <textarea class="textarea" style="min-height:64px">Reaksi endoterm menyerap kalor (ΔH > 0), sehingga suhu lingkungan justru turun dan entalpi produk lebih tinggi.</textarea>
+              </div>
+            </div>
+            <div class="q-foot">
+              <label class="pts-field">Poin <input class="input mono pts" type="number" value="15" min="0"></label>
+              <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>Hapus soal</button>
+            </div>
+          </div>
+
+          <!-- Q3: true_false -->
+          <div class="q-card">
+            <div class="q-head">
+              <span class="grab" aria-label="Seret"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+              <span class="num">Soal 3</span>
+              <span class="badge">Benar/Salah</span>
+              <span class="spacer"></span>
+              <button class="icon-btn" aria-label="Hapus soal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+            </div>
+            <div class="q-body">
+              <div class="prompt-box" contenteditable="true" role="textbox" aria-label="Pertanyaan">Menurut Hukum Hess, perubahan entalpi total suatu reaksi bergantung pada jalannya reaksi.</div>
+              <div style="margin-top:14px">
+                <div class="opt-row"><input class="mark" type="radio" name="q3" aria-label="Tandai benar"><input class="opt-input" type="text" value="Benar" readonly><button class="del" aria-label="Hapus pilihan" disabled style="opacity:.3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row correct"><input class="mark" type="radio" name="q3" checked aria-label="Tandai benar"><input class="opt-input" type="text" value="Salah" readonly><span class="tag-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>benar</span><button class="del" aria-label="Hapus pilihan" disabled style="opacity:.3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+              </div>
+              <div class="field" style="margin:16px 0 0">
+                <label>Pembahasan</label>
+                <textarea class="textarea" style="min-height:60px">Salah. Hukum Hess menyatakan ΔH total hanya bergantung pada keadaan awal dan akhir, bukan pada jalannya reaksi.</textarea>
+              </div>
+            </div>
+            <div class="q-foot">
+              <label class="pts-field">Poin <input class="input mono pts" type="number" value="5" min="0"></label>
+              <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>Hapus soal</button>
+            </div>
+          </div>
+
+          <!-- Q4: short_answer -->
+          <div class="q-card">
+            <div class="q-head">
+              <span class="grab" aria-label="Seret"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+              <span class="num">Soal 4</span>
+              <span class="badge warn">Isian singkat</span>
+              <span class="spacer"></span>
+              <button class="icon-btn" aria-label="Hapus soal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+            </div>
+            <div class="q-body">
+              <div class="prompt-box" contenteditable="true" role="textbox" aria-label="Pertanyaan">Sebutkan satuan SI untuk perubahan entalpi reaksi (ΔH) per mol zat.</div>
+              <div style="margin-top:14px">
+                <label class="field-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">Jawaban diterima</label>
+                <div class="opt-row"><span class="mark" style="display:grid;place-items:center;color:var(--success)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg></span><input class="opt-input" type="text" value="kJ/mol"><button class="del" aria-label="Hapus jawaban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><span class="mark" style="display:grid;place-items:center;color:var(--success)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg></span><input class="opt-input" type="text" value="kJ mol-1"><button class="del" aria-label="Hapus jawaban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="opt-row"><span class="mark" style="display:grid;place-items:center;color:var(--success)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg></span><input class="opt-input" type="text" value="kilojoule per mol"><button class="del" aria-label="Hapus jawaban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <button class="btn btn-sm btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Tambah jawaban</button>
+                <div class="checkrow" style="margin-top:12px"><input type="checkbox" id="q4-case"><label for="q4-case" style="font-weight:500">Peka huruf besar/kecil</label></div>
+              </div>
+              <div class="field" style="margin:16px 0 0">
+                <label>Pembahasan</label>
+                <textarea class="textarea" style="min-height:60px">Perubahan entalpi reaksi dinyatakan dalam kilojoule per mol (kJ/mol).</textarea>
+              </div>
+            </div>
+            <div class="q-foot">
+              <label class="pts-field">Poin <input class="input mono pts" type="number" value="10" min="0"></label>
+              <button class="btn btn-sm btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>Hapus soal</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <div class="sticky-bar">
+        <a class="btn" href="quiz-intro.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Pratinjau</a>
+        <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Simpan kuis</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengerjaan Kuis · Kimia Pintar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .quiz-shell { min-height: 100vh; display: flex; flex-direction: column; }
+  .quiz-bar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 14px;
+    height: var(--topbar-h); padding: 0 clamp(14px, 3vw, 28px);
+    background: color-mix(in oklch, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .quiz-bar .qtitle { font-family: var(--font-display); font-weight: 700; color: var(--fg-strong); font-size: 14.5px; letter-spacing: -.01em; }
+  .quiz-bar .qtitle small { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .quiz-bar .spacer { flex: 1; }
+  .timer {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--border-2); background: var(--surface);
+    font-size: 15px; font-weight: 600; color: var(--fg-strong);
+  }
+  .timer svg { width: 16px; height: 16px; color: var(--accent-ink); }
+  .timer .mono.warn { color: var(--warn); }
+  .timer.warn-state { border-color: var(--warn); background: var(--warn-soft); }
+  .timer .mono.over { color: var(--danger); }
+  .timer.over-state { border-color: var(--danger); background: var(--danger-soft); }
+  .save-ind { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--success); font-weight: 600; }
+  .save-ind svg { width: 15px; height: 15px; }
+  .exit-link { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+  .exit-link svg { width: 15px; height: 15px; }
+
+  .quiz-main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
+
+  .qhead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .qnum { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--muted); }
+  .qprompt { font-family: var(--font-display); font-weight: 700; color: var(--fg-strong); font-size: 1.18rem; line-height: 1.35; margin-bottom: 4px; }
+  .qnote { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+
+  .opts { display: flex; flex-direction: column; gap: 10px; }
+  .opt {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 15px; border: 1.5px solid var(--border-2); border-radius: var(--r);
+    background: var(--surface); cursor: pointer; transition: border-color .12s, background .12s;
+    font-size: 14.5px;
+  }
+  .opt:hover { border-color: var(--accent); background: var(--surface-2); }
+  .opt input { width: 19px; height: 19px; flex: none; accent-color: var(--accent); margin: 0; }
+  .opt:has(:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+
+  .qnav { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 6px; }
+  .qdot {
+    width: 40px; height: 40px; flex: none; border-radius: var(--r-sm);
+    border: 1.5px solid var(--border-2); background: var(--surface);
+    color: var(--muted); font: 600 14px/1 var(--font-mono); cursor: pointer;
+    display: grid; place-items: center; transition: all .12s;
+  }
+  .qdot:hover { border-color: var(--accent); }
+  .qdot.answered { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+  .qdot.active { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+
+  .qfoot {
+    position: sticky; bottom: 0;
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px clamp(14px, 3vw, 28px);
+    border-top: 1px solid var(--border);
+    background: color-mix(in oklch, var(--bg) 88%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  .qfoot .qpos { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 auto; }
+  .formula { font-family: var(--font-mono); }
+  @media (max-width: 480px) {
+    .quiz-bar .save-ind span { display: none; }
+    .qfoot .btn { flex: 1; }
+    .qfoot .qpos { width: 100%; order: -1; text-align: center; margin: 0 0 4px; }
+    .qfoot { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="quiz-shell">
+  <header class="quiz-bar">
+    <div class="qtitle">Termokimia<small>Kuis Pertemuan 4</small></div>
+    <span class="spacer"></span>
+    <span class="save-ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Tersimpan</span></span>
+    <span class="timer" id="timer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="mono" data-countdown="1200">20:00</span>
+    </span>
+    <a class="exit-link" href="meeting.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Keluar</a>
+  </header>
+
+  <main class="quiz-main">
+    <div data-quiz-player>
+      <!-- Q1 -->
+      <div data-q>
+        <div class="qhead"><span class="qnum">Soal 1</span><span class="badge accent">1 poin</span><span class="badge">Pilihan tunggal</span></div>
+        <p class="qprompt">Reaksi yang melepaskan kalor ke lingkungan disebut…</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q1" value="a"> Eksoterm</label>
+          <label class="opt"><input type="radio" name="q1" value="b"> Endoterm</label>
+          <label class="opt"><input type="radio" name="q1" value="c"> Isotermal</label>
+          <label class="opt"><input type="radio" name="q1" value="d"> Adiabatik</label>
+        </div>
+      </div>
+
+      <!-- Q2 -->
+      <div data-q>
+        <div class="qhead"><span class="qnum">Soal 2</span><span class="badge accent">1 poin</span><span class="badge">Pilihan tunggal</span></div>
+        <p class="qprompt">Nilai &Delta;H untuk reaksi eksoterm bernilai…</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q2" value="a"> Negatif</label>
+          <label class="opt"><input type="radio" name="q2" value="b"> Positif</label>
+          <label class="opt"><input type="radio" name="q2" value="c"> Nol</label>
+          <label class="opt"><input type="radio" name="q2" value="d"> Tak tentu</label>
+        </div>
+      </div>
+
+      <!-- Q3 -->
+      <div data-q>
+        <div class="qhead"><span class="qnum">Soal 3</span><span class="badge accent">1 poin</span><span class="badge">Pilihan jamak</span></div>
+        <p class="qprompt">Manakah proses berikut yang tergolong endoterm?</p>
+        <p class="qnote">Pilih semua yang benar.</p>
+        <div class="opts">
+          <label class="opt"><input type="checkbox" name="q3" value="a"> Mencairnya es batu</label>
+          <label class="opt"><input type="checkbox" name="q3" value="b"> Fotosintesis pada daun</label>
+          <label class="opt"><input type="checkbox" name="q3" value="c"> Pembakaran kertas</label>
+          <label class="opt"><input type="checkbox" name="q3" value="d"> Penguapan air</label>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div data-q>
+        <div class="qhead"><span class="qnum">Soal 4</span><span class="badge accent">1 poin</span><span class="badge">Benar / Salah</span></div>
+        <p class="qprompt">Pada reaksi endoterm, sistem menyerap kalor dari lingkungan.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q4" value="t"> Benar</label>
+          <label class="opt"><input type="radio" name="q4" value="f"> Salah</label>
+        </div>
+      </div>
+
+      <!-- Q5 -->
+      <div data-q>
+        <div class="qhead"><span class="qnum">Soal 5</span><span class="badge accent">1 poin</span><span class="badge">Pilihan tunggal</span></div>
+        <p class="qprompt">Pada reaksi <span class="formula">CH<sub>4</sub> + 2O<sub>2</sub> &rarr; CO<sub>2</sub> + 2H<sub>2</sub>O</span> dengan &Delta;H = &minus;890 kJ/mol, reaksi tersebut tergolong…</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q5" value="a"> Eksoterm</label>
+          <label class="opt"><input type="radio" name="q5" value="b"> Endoterm</label>
+          <label class="opt"><input type="radio" name="q5" value="c"> Isotermal</label>
+          <label class="opt"><input type="radio" name="q5" value="d"> Tidak dapat ditentukan</label>
+        </div>
+      </div>
+    </div>
+
+    <nav class="qnav" aria-label="Navigasi soal">
+      <button class="qdot" data-qdot>1</button>
+      <button class="qdot" data-qdot>2</button>
+      <button class="qdot" data-qdot>3</button>
+      <button class="qdot" data-qdot>4</button>
+      <button class="qdot" data-qdot>5</button>
+    </nav>
+    <p class="muted" style="font-size:12px;margin-top:4px">Kotak terisi = sudah dijawab. Klik nomor untuk berpindah soal.</p>
+  </main>
+
+  <footer class="qfoot">
+    <button class="btn" data-qprev>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Sebelumnya
+    </button>
+    <span class="qpos" data-qpos>1 / 5</span>
+    <button class="btn btn-primary" data-qnext>
+      Berikutnya
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <a class="btn btn-primary" data-qfinish href="quiz-result.html" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+      Selesai &amp; kirim
+    </a>
+  </footer>
+</div>
+<script>
+  // Drive timer warn/over states onto the timer pill (app.js sets .warn/.over on the inner span)
+  (function () {
+    var span = document.querySelector('#timer .mono'), pill = document.getElementById('timer');
+    if (!span || !pill) return;
+    new MutationObserver(function () {
+      pill.classList.toggle('warn-state', span.classList.contains('warn'));
+      pill.classList.toggle('over-state', span.classList.contains('over'));
+    }).observe(span, { attributes: true, attributeFilter: ['class'] });
+  })();
+</script>
+<script src="assets/app.js"></script>
+</body>
+</html>

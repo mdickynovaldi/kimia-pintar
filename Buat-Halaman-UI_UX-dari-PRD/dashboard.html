@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beranda · Kimia Pintar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .continue {
+    background: linear-gradient(150deg, oklch(28% 0.06 200), oklch(21% 0.045 235));
+    color: #fff; border-radius: var(--r-xl); padding: clamp(20px,3vw,30px); position: relative; overflow: hidden;
+  }
+  .continue .eyebrow { color: oklch(85% 0.1 180); }
+  .continue h2 { color: #fff; margin: 8px 0 4px; }
+  .continue p { color: rgba(255,255,255,.78); max-width: 46ch; }
+  .continue .progress { background: rgba(255,255,255,.18); margin: 18px 0; max-width: 380px; }
+  .continue .progress > i { background: oklch(82% 0.13 180); }
+  .continue .mol { position: absolute; right: -30px; top: -30px; opacity: .14; }
+  .crs { display: flex; flex-direction: column; gap: 12px; padding: 16px; border:1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-sm); transition: transform .08s, border-color .15s; text-decoration:none; color:inherit; }
+  .crs:hover { transform: translateY(-2px); border-color: var(--accent); text-decoration:none; }
+  .crs .cap { height: 84px; border-radius: var(--r); display:flex; align-items:flex-end; padding:10px; color:#fff; font-family:var(--font-display); font-weight:700; }
+  .crs .ttl { font-family:var(--font-display); font-weight:700; color:var(--fg-strong); }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="sidebar-scrim"></div>
+  <aside class="sidebar">
+    <span class="brand"><span class="logo" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/><path d="M7 14h10"/></svg>
+    </span>Kimia Pintar</span>
+
+    <a class="nav-item active" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Beranda</a>
+    <a class="nav-item" href="courses.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2z"/><path d="M9 7h5"/></svg>Mata Kuliah</a>
+    <a class="nav-item" href="results.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 4 3 5-7"/></svg>Nilai Saya</a>
+    <a class="nav-item" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profil</a>
+
+    <div class="nav-label">Pintasan</div>
+    <a class="nav-item" href="course.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lanjut belajar</a>
+
+    <div class="sidebar-foot">
+      <a class="nav-item" href="login.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Keluar</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" data-menu aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <span class="crumb">Halo, <b>Emmil</b> 👋</span>
+      <span class="spacer"></span>
+      <button class="icon-btn theme-toggle" data-theme-toggle aria-label="Ganti tema">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <div class="avatar" title="Emmil Saputra">ES</div>
+    </header>
+
+    <div class="content">
+      <div class="grid grid-4" style="margin-bottom:18px">
+        <div class="stat"><div class="k">Kursus aktif</div><div class="v">1<small> / 7</small></div><div class="d">Kimia Dasar</div></div>
+        <div class="stat"><div class="k">Pertemuan selesai</div><div class="v">3<small> / 8</small></div><div class="d">38% progres</div></div>
+        <div class="stat"><div class="k">Rata-rata nilai</div><div class="v mono">82</div><div class="d">dari 4 kuis</div></div>
+        <div class="stat"><div class="k">Kuis menunggu</div><div class="v">1</div><div class="d">Pertemuan 4 · besok</div></div>
+      </div>
+
+      <div class="continue" style="margin-bottom:22px">
+        <svg class="mol" width="220" height="220" viewBox="0 0 200 200" fill="none" stroke="#fff" stroke-width="1.5"><circle cx="60" cy="60" r="14"/><circle cx="140" cy="60" r="14"/><circle cx="100" cy="130" r="14"/><path d="M74 60h52M68 72 92 118M132 72 108 118"/></svg>
+        <span class="eyebrow">Lanjut belajar</span>
+        <h2>Pertemuan 4 — Termokimia</h2>
+        <p>Kamu berhenti di materi “Entalpi reaksi”. Lanjutkan, lalu kerjakan kuis sebelum tenggat besok.</p>
+        <div class="progress"><i style="width:45%"></i></div>
+        <div class="row gap-sm">
+          <a class="btn btn-lg" style="background:#fff;color:#06302b" href="meeting.html">Lanjutkan materi</a>
+          <a class="btn btn-lg btn-ghost" style="color:#fff;border:1px solid rgba(255,255,255,.3)" href="quiz-intro.html">Mulai kuis</a>
+        </div>
+      </div>
+
+      <div class="row between" style="margin-bottom:14px"><h2>Mata kuliah saya</h2><a href="courses.html" class="btn btn-sm btn-ghost">Lihat semua →</a></div>
+      <div class="grid grid-3" style="margin-bottom:26px">
+        <a class="crs" href="course.html">
+          <div class="cap" style="background:linear-gradient(140deg,oklch(55% 0.12 178),oklch(45% 0.13 200))">Kimia Dasar</div>
+          <div><div class="ttl">Kimia Dasar</div><div class="muted" style="font-size:12.5px">8 pertemuan · 38% selesai</div></div>
+          <div class="progress thin"><i style="width:38%"></i></div>
+        </a>
+        <div class="crs" style="opacity:.7;cursor:default">
+          <div class="cap" style="background:linear-gradient(140deg,oklch(60% 0.1 300),oklch(50% 0.12 320))">Kimia Organik</div>
+          <div><div class="ttl">Kimia Organik</div><div class="muted" style="font-size:12.5px">Belum terdaftar</div></div>
+          <span class="badge warn" style="align-self:flex-start"><span class="dot"></span>Segera hadir</span>
+        </div>
+        <div class="crs" style="opacity:.7;cursor:default">
+          <div class="cap" style="background:linear-gradient(140deg,oklch(62% 0.1 60),oklch(52% 0.12 40))">Biokimia</div>
+          <div><div class="ttl">Biokimia</div><div class="muted" style="font-size:12.5px">Belum terdaftar</div></div>
+          <span class="badge warn" style="align-self:flex-start"><span class="dot"></span>Segera hadir</span>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-head"><h3>Hasil kuis terbaru</h3><span class="spacer"></span><a href="results.html" style="font-size:13px">Semua nilai</a></div>
+          <div class="card-pad" style="padding-top:6px">
+            <div class="stack" style="gap:0">
+              <div class="row between" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600">Pertemuan 3 — Ikatan Kimia</div><div class="muted" style="font-size:12.5px">Kimia Dasar · 2 hari lalu</div></div><span class="badge ok mono">90</span></div>
+              <div class="row between" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:600">Pertemuan 2 — Struktur Atom</div><div class="muted" style="font-size:12.5px">Kimia Dasar · 1 minggu lalu</div></div><span class="badge ok mono">85</span></div>
+              <div class="row between" style="padding:12px 0"><div><div style="font-weight:600">Pertemuan 1 — Stoikiometri</div><div class="muted" style="font-size:12.5px">Kimia Dasar · 2 minggu lalu</div></div><span class="badge warn mono">72</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Tenggat &amp; pengumuman</h3></div>
+          <div class="card-pad" style="padding-top:6px">
+            <div class="row gap-sm" style="padding:12px 0;border-bottom:1px solid var(--border)">
+              <span class="badge danger" style="flex:none"><span class="dot"></span>Besok</span>
+              <div><div style="font-weight:600">Kuis Pertemuan 4 — Termokimia</div><div class="muted" style="font-size:12.5px">Batas 24 Jun, 23:59 · 20 menit · 1 percobaan</div></div>
+            </div>
+            <div class="row gap-sm" style="padding:12px 0">
+              <span class="badge info" style="flex:none">Info</span>
+              <div><div style="font-weight:600">Materi Pertemuan 5 sudah terbit</div><div class="muted" style="font-size:12.5px">Laju Reaksi — Bu Maya · 3 hari lalu</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Design handoff (static HTML/CSS/JS prototype) — reference only, not app code.
+    "Buat-Halaman-UI_UX-dari-PRD/**",
   ]),
 ]);
 
