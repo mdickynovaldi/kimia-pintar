@@ -3,10 +3,13 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Plus } from "@/components/icons";
 import { getCourses } from "@/lib/data";
+import { requireAdmin } from "@/lib/auth/dal";
+import { createCourse, deleteCourse } from "@/app/actions/admin";
 
 export const metadata: Metadata = { title: "Mata Kuliah · Admin Kimia Pintar" };
 
 export default async function AdminCoursesPage() {
+  await requireAdmin();
   const courses = await getCourses();
   const total = courses.length;
   const publishedCount = courses.filter((c) => c.isPublished).length;
@@ -25,10 +28,19 @@ export default async function AdminCoursesPage() {
             penerbitan.
           </p>
         </div>
-        <Link className="btn btn-primary" href="/admin/courses/crs-dasar">
-          <Plus />
-          Buat mata kuliah
-        </Link>
+        <form action={createCourse} className="row gap-sm" style={{ flexWrap: "wrap" }}>
+          <input
+            className="input"
+            type="text"
+            name="title"
+            placeholder="Judul mata kuliah baru…"
+            style={{ minWidth: "220px" }}
+          />
+          <button className="btn btn-primary" type="submit">
+            <Plus />
+            Buat mata kuliah
+          </button>
+        </form>
       </div>
 
       <div className="row wrap" style={{ marginBottom: "18px" }}>
@@ -68,7 +80,7 @@ export default async function AdminCoursesPage() {
             <tr>
               <th>Mata Kuliah</th>
               <th>Pertemuan</th>
-              <th>Siswa</th>
+              <th>Kuis</th>
               <th>Status</th>
               <th>Aksi</th>
             </tr>
@@ -84,8 +96,8 @@ export default async function AdminCoursesPage() {
                     {course.code}
                   </div>
                 </td>
-                <td className="num">{course.meetingCount}</td>
-                <td className="num">{course.quizCount}</td>
+                <td className="num">{course.meetingCount} pertemuan</td>
+                <td className="num">{course.quizCount} kuis</td>
                 <td>
                   {course.isPublished ? (
                     <span className="badge ok">
@@ -103,10 +115,16 @@ export default async function AdminCoursesPage() {
                     >
                       Edit
                     </Link>
-                    <label className="switch" title="Status terbit">
-                      <input type="checkbox" defaultChecked={course.isPublished} />
-                      <span className="track"></span>
-                    </label>
+                    <form action={deleteCourse}>
+                      <input type="hidden" name="id" value={course.id} />
+                      <button
+                        type="submit"
+                        className="btn btn-ghost"
+                        style={{ fontSize: "13px", fontWeight: 600, color: "var(--danger, #c0392b)" }}
+                      >
+                        Hapus
+                      </button>
+                    </form>
                   </div>
                 </td>
               </tr>

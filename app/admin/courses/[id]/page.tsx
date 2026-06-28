@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Tabs } from "@/components/ui/tabs";
-import { getMeetings } from "@/lib/data";
+import { getCourseById, getMeetingsByCourseId } from "@/lib/data";
+import { requireAdmin } from "@/lib/auth/dal";
+import {
+  updateCourse,
+  createMeeting,
+  deleteMeeting,
+} from "@/app/actions/admin";
 
 export const metadata: Metadata = { title: "Edit Mata Kuliah · Admin Kimia Pintar" };
 
@@ -26,18 +33,6 @@ const pageStyles = `
   .meet-actions { display: flex; align-items: center; gap: 8px; flex: none; }
   @media (max-width: 560px) { .meet-row .ttl small { display: none; } }
 `;
-
-/** Source-authored subtitle + publish state per meeting order (fidelity to prototype copy). */
-const MEETING_META: Record<number, { subtitle: string; published: boolean }> = {
-  1: { subtitle: "Konsep mol, persamaan reaksi", published: true },
-  2: { subtitle: "Konfigurasi elektron, tabel periodik", published: true },
-  3: { subtitle: "Ionik, kovalen, logam", published: true },
-  4: { subtitle: "Entalpi, kalorimetri, Hukum Hess", published: true },
-  5: { subtitle: "Orde reaksi, faktor laju", published: false },
-  6: { subtitle: "Tetapan Kc, asas Le Chatelier", published: false },
-  7: { subtitle: "pH, titrasi, larutan penyangga", published: false },
-  8: { subtitle: "Bilangan oksidasi, penyetaraan", published: false },
-};
 
 function GrabIcon() {
   return (
@@ -65,33 +60,38 @@ export default async function AdminCourseEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await params;
-  const meetings = await getMeetings("kimia-dasar");
+  await requireAdmin();
+  const { id } = await params;
+  const course = await getCourseById(id);
+  if (!course) notFound();
+  const meetings = await getMeetingsByCourseId(id);
 
   const detailPanel = (
     <div className="card card-pad" style={{ maxWidth: "720px" }}>
-      <form>
+      <form id="course-form" action={updateCourse}>
+        <input type="hidden" name="id" value={course.id} />
         <div className="field">
           <label htmlFor="c-judul">Judul</label>
-          <input className="input" id="c-judul" type="text" defaultValue="Kimia Dasar" />
+          <input className="input" id="c-judul" name="title" type="text" defaultValue={course.title} />
         </div>
         <div className="grid grid-2">
           <div className="field">
             <label htmlFor="c-kode">Kode</label>
-            <input className="input mono" id="c-kode" type="text" defaultValue="KIMIA-DASAR" />
+            <input className="input mono" id="c-kode" name="code" type="text" defaultValue={course.code} />
           </div>
           <div className="field">
             <label htmlFor="c-slug">Slug</label>
-            <input className="input mono" id="c-slug" type="text" defaultValue="kimia-dasar" />
-            <span className="hint">kimiapintar.id/kursus/kimia-dasar</span>
+            <input className="input mono" id="c-slug" type="text" defaultValue={course.slug} readOnly />
+            <span className="hint">kimiapintar.id/kursus/{course.slug}</span>
           </div>
         </div>
         <div className="field">
           <label htmlFor="c-desk">Deskripsi</label>
-          <textarea className="textarea" id="c-desk" defaultValue="Pengantar kimia untuk tingkat dasar: stoikiometri, struktur atom, ikatan kimia, termokimia, laju reaksi, kesetimbangan, asam-basa, dan reaksi redoks. Diampu oleh Bu Maya." />
+          <textarea className="textarea" id="c-desk" name="description" defaultValue={course.description} />
         </div>
         <div className="field">
           <label>Warna aksen</label>
+          <input type="hidden" name="color" defaultValue={course.color} />
           <div className="swatch-row" role="radiogroup" aria-label="Warna aksen">
             <button type="button" className="swatch on" style={{ background: "oklch(58% 0.11 178)" }} aria-label="Teal" aria-pressed="true"></button>
             <button type="button" className="swatch" style={{ background: "oklch(56% 0.13 255)" }} aria-label="Biru"></button>
@@ -121,7 +121,7 @@ export default async function AdminCourseEditPage({
             <div className="hint">Saat aktif, kursus tampil di katalog siswa.</div>
           </div>
           <label className="switch">
-            <input type="checkbox" defaultChecked />
+            <input type="checkbox" name="is_published" value="true" defaultChecked={course.isPublished} />
             <span className="track"></span>
           </label>
         </div>
@@ -135,44 +135,54 @@ export default async function AdminCourseEditPage({
         <div>
           <h3 style={{ marginBottom: "2px" }}>Daftar pertemuan</h3>
           <span className="faint" style={{ fontSize: "13px" }}>
-            8 pertemuan · seret untuk mengubah urutan
+            {meetings.length} pertemuan · seret untuk mengubah urutan
           </span>
         </div>
-        <Link className="btn btn-primary btn-sm" href="/admin/courses/crs-dasar/meetings/mtg-kd-04">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Tambah pertemuan
-        </Link>
+        <form action={createMeeting} className="row gap-sm wrap" style={{ alignItems: "center" }}>
+          <input type="hidden" name="course_id" value={course.id} />
+          <input className="input" name="title" type="text" placeholder="Judul pertemuan baru" />
+          <button type="submit" className="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Tambah pertemuan
+          </button>
+        </form>
       </div>
 
       <div role="list">
-        {meetings.map((m) => {
-          const meta = MEETING_META[m.order];
-          return (
-            <div className="meet-row" role="listitem" draggable="true" key={m.id}>
-              <span className="grab" aria-label="Seret">
-                <GrabIcon />
-              </span>
-              <span className="num-chip">{m.order}</span>
-              <div className="ttl">
-                {m.title} <small>{meta?.subtitle}</small>
-              </div>
-              <div className="meet-actions">
-                <label className="switch">
-                  <input type="checkbox" defaultChecked={meta?.published} />
-                  <span className="track"></span>
-                </label>
-                <Link className="btn btn-sm btn-ghost" href={`/admin/courses/crs-dasar/meetings/${m.id}`}>
-                  Edit
+        {meetings.map((m) => (
+          <div className="meet-row" role="listitem" draggable="true" key={m.id}>
+            <span className="grab" aria-label="Seret">
+              <GrabIcon />
+            </span>
+            <span className="num-chip">{m.order}</span>
+            <div className="ttl">
+              {m.title} <small>{m.description}</small>
+            </div>
+            <div className="meet-actions">
+              <label className="switch" title="Status terbit">
+                <input type="checkbox" defaultChecked={m.isPublished} disabled />
+                <span className="track"></span>
+              </label>
+              {m.quizId ? (
+                <Link className="btn btn-sm btn-ghost" href={`/admin/quizzes/${m.quizId}`}>
+                  Kuis
                 </Link>
-                <button className="icon-btn" aria-label="Hapus">
+              ) : null}
+              <Link className="btn btn-sm btn-ghost" href={`/admin/courses/${course.id}/meetings/${m.id}`}>
+                Edit
+              </Link>
+              <form action={deleteMeeting}>
+                <input type="hidden" name="id" value={m.id} />
+                <input type="hidden" name="course_id" value={course.id} />
+                <button type="submit" className="icon-btn" aria-label="Hapus">
                   <TrashIcon />
                 </button>
-              </div>
+              </form>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -183,7 +193,7 @@ export default async function AdminCourseEditPage({
         <div>
           <h3 style={{ marginBottom: "2px" }}>Pendaftaran</h3>
           <span className="faint" style={{ fontSize: "13px" }}>
-            <b style={{ color: "var(--fg)" }}>42 siswa</b> terdaftar di Kimia Dasar
+            <b style={{ color: "var(--fg)" }}>42 siswa</b> terdaftar di {course.title}
           </span>
         </div>
         <Link className="btn btn-sm" href="/admin/enrollments">
@@ -273,7 +283,7 @@ export default async function AdminCourseEditPage({
       variant="admin"
       crumb={
         <>
-          <Link href="/admin/courses">Mata Kuliah</Link> / <b>Kimia Dasar</b>
+          <Link href="/admin/courses">Mata Kuliah</Link> / <b>{course.title}</b>
         </>
       }
     >
@@ -283,17 +293,17 @@ export default async function AdminCourseEditPage({
         <div className="row between wrap" style={{ gap: "16px" }}>
           <div>
             <h1>Edit Mata Kuliah</h1>
-            <p>Kelola detail, pertemuan, dan pendaftaran untuk Kimia Dasar.</p>
+            <p>Kelola detail, pertemuan, dan pendaftaran untuk {course.title}.</p>
           </div>
           <div className="head-actions">
             <div className="switch-field" style={{ padding: "8px 12px", background: "transparent", border: 0 }}>
               <span className="lbl">Terbit</span>
               <label className="switch">
-                <input type="checkbox" defaultChecked />
+                <input type="checkbox" name="is_published" value="true" form="course-form" defaultChecked={course.isPublished} />
                 <span className="track"></span>
               </label>
             </div>
-            <button className="btn btn-primary">
+            <button type="submit" form="course-form" className="btn btn-primary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                 <path d="M17 21v-8H7v8M7 3v5h8" />

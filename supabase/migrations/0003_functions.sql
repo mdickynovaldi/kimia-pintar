@@ -154,7 +154,7 @@ begin
     percentage   = case when v_max > 0 then round(v_score / v_max * 100, 2) else 0 end,
     passed       = case when v_max > 0 then (v_score / v_max * 100) >= v_quiz.passing_score else false end,
     submitted_at = coalesce(submitted_at, now()),
-    status       = case when v_needs_manual then 'awaiting_manual_grade' else 'graded' end
+    status       = (case when v_needs_manual then 'awaiting_manual_grade' else 'graded' end)::attempt_status
   where id = p_attempt;
 end;
 $$;

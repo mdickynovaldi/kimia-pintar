@@ -13,10 +13,12 @@ import {
   rowToQuiz,
   rowToVideo,
 } from "./map";
+import { DEFAULT_SETTINGS } from "./types";
 import type {
   Course,
   GradebookRow,
   Meeting,
+  PlatformSettings,
   Profile,
   Question,
   Quiz,
@@ -96,11 +98,26 @@ export async function getMeetings(courseSlug: string): Promise<Meeting[]> {
 
   const completed = await completedQuizIds();
 
-  return (rows ?? []).map((row: Row) => {
+  // "Continue where you left off": completed meetings (graded quiz), the first
+  // not-yet-completed meeting is available, the rest are locked.
+  const prepared = (rows ?? []).map((row: Row) => {
     const quizId = (row.quizzes as Array<{ id: string }>)?.[0]?.id ?? null;
-    const isCompleted = quizId ? completed.has(quizId) : false;
-    const published = (row.is_published as boolean) ?? false;
-    const state = isCompleted ? "completed" : published ? "available" : "locked";
+    return {
+      row,
+      quizId,
+      order: (row.sort_order as number) ?? 0,
+      isCompleted: quizId ? completed.has(quizId) : false,
+    };
+  });
+  const firstIncomplete = prepared.find((m) => !m.isCompleted);
+  const openOrder = firstIncomplete ? firstIncomplete.order : Infinity;
+
+  return prepared.map(({ row, quizId, order, isCompleted }) => {
+    const state = isCompleted
+      ? "completed"
+      : order === openOrder
+        ? "available"
+        : "locked";
     return rowToMeeting(row, { courseSlug, state, quizId });
   });
 }
@@ -134,17 +151,78 @@ export async function getMeeting(
 
   const completed = await completedQuizIds();
   const quizId = (quiz?.id as string) ?? null;
-  const published = (m.is_published as boolean) ?? false;
-  const state = quizId && completed.has(quizId)
-    ? "completed"
-    : published
-      ? "available"
-      : "locked";
+  const state = quizId && completed.has(quizId) ? "completed" : "available";
 
   return rowToMeeting(m, {
     courseSlug,
     state,
     quizId,
+    materials: (materials ?? []).map(rowToMaterial),
+    videos: (videos ?? []).map(rowToVideo),
+  });
+}
+
+/** Admin: course by id (for the course editor route /admin/courses/[id]). */
+export async function getCourseById(id: string): Promise<Course | undefined> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("courses")
+    .select("*, meetings(count), quizzes(count)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return undefined;
+  return rowToCourse(
+    data,
+    ((data.meetings as Array<{ count: number }>)?.[0]?.count) ?? 0,
+    ((data.quizzes as Array<{ count: number }>)?.[0]?.count) ?? 0,
+  );
+}
+
+/** Admin: meetings of a course by id (publish-state, not student progress). */
+export async function getMeetingsByCourseId(courseId: string): Promise<Meeting[]> {
+  const supabase = await createClient();
+  const { data: course } = await supabase
+    .from("courses")
+    .select("slug")
+    .eq("id", courseId)
+    .maybeSingle();
+  const slug = (course?.slug as string) ?? "";
+  const { data: rows } = await supabase
+    .from("meetings")
+    .select("*, quizzes(id)")
+    .eq("course_id", courseId)
+    .order("sort_order");
+  return (rows ?? []).map((row: Row) =>
+    rowToMeeting(row, {
+      courseSlug: slug,
+      state: (row.is_published as boolean) ? "available" : "locked",
+      quizId: (row.quizzes as Array<{ id: string }>)?.[0]?.id ?? null,
+    }),
+  );
+}
+
+/** Admin: full meeting by id with materials + videos (for the meeting editor). */
+export async function getMeetingById(
+  meetingId: string,
+): Promise<Meeting | undefined> {
+  const supabase = await createClient();
+  const { data: m } = await supabase
+    .from("meetings")
+    .select("*, courses(slug)")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!m) return undefined;
+  const courseSlug = (m.courses as { slug?: string } | null)?.slug ?? "";
+  const [{ data: materials }, { data: videos }, { data: quiz }] =
+    await Promise.all([
+      supabase.from("materials").select("*").eq("meeting_id", m.id).order("sort_order"),
+      supabase.from("videos").select("*").eq("meeting_id", m.id).order("sort_order"),
+      supabase.from("quizzes").select("id").eq("meeting_id", m.id).maybeSingle(),
+    ]);
+  return rowToMeeting(m, {
+    courseSlug,
+    state: "available",
+    quizId: (quiz?.id as string) ?? null,
     materials: (materials ?? []).map(rowToMaterial),
     videos: (videos ?? []).map(rowToVideo),
   });
@@ -223,23 +301,27 @@ export async function getAttempt(attemptId: string): Promise<QuizAttempt | null>
     .select("*, questions(prompt, explanation, sort_order)")
     .eq("attempt_id", attemptId);
 
-  // Correct-answer text needs the keys (admin-only); fetch server-side when
-  // policy allows revealing them.
-  const correctById = new Map<string, string>();
-  if (reveal && hasServiceRole) {
+  // Map option ids → text so we can render the student's chosen options ("given")
+  // and, when policy allows, the correct answers. Options are admin-only via RLS,
+  // so this read uses the service-role client server-side.
+  const optionText = new Map<string, string>(); // optionId → content
+  const correctById = new Map<string, string>(); // questionId → correct contents
+  if (hasServiceRole) {
     const admin = createAdminClient();
     const qIds = (answers ?? []).map((x) => x.question_id as string);
     if (qIds.length) {
       const { data: opts } = await admin
         .from("question_options")
-        .select("question_id, content, is_correct")
-        .in("question_id", qIds)
-        .eq("is_correct", true);
+        .select("id, question_id, content, is_correct")
+        .in("question_id", qIds);
       const grouped = new Map<string, string[]>();
       for (const o of opts ?? []) {
-        const arr = grouped.get(o.question_id as string) ?? [];
-        arr.push(o.content as string);
-        grouped.set(o.question_id as string, arr);
+        optionText.set(o.id as string, o.content as string);
+        if (o.is_correct) {
+          const arr = grouped.get(o.question_id as string) ?? [];
+          arr.push(o.content as string);
+          grouped.set(o.question_id as string, arr);
+        }
       }
       for (const [qid, contents] of grouped) correctById.set(qid, contents.join(", "));
     }
@@ -253,11 +335,16 @@ export async function getAttempt(attemptId: string): Promise<QuizAttempt | null>
     )
     .map((row) => {
       const q = row.questions as { prompt?: string; explanation?: string } | null;
+      const selected = (row.selected_option_ids as string[] | null) ?? [];
+      const given =
+        (row.answer_text as string) ||
+        selected.map((id) => optionText.get(id) ?? "—").join(", ") ||
+        "—";
       return {
         questionId: row.question_id as string,
         prompt: q?.prompt ?? "",
-        given: (row.answer_text as string) ?? "—",
-        correct: correctById.get(row.question_id as string) ?? "—",
+        given,
+        correct: reveal ? (correctById.get(row.question_id as string) ?? "—") : "—",
         isCorrect: (row.is_correct as boolean) ?? false,
         explanation: reveal ? q?.explanation ?? undefined : undefined,
       };
@@ -389,6 +476,34 @@ export async function getMyResults(): Promise<ResultRow[]> {
       status,
     };
   });
+}
+
+// ---- platform settings -----------------------------------------------------
+
+export async function getSettings(): Promise<PlatformSettings> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+  // Table may not exist yet (migration 0004 not applied) — fall back to defaults.
+  if (error || !data) return DEFAULT_SETTINGS;
+  return {
+    siteName: (data.site_name as string) ?? DEFAULT_SETTINGS.siteName,
+    domain: (data.domain as string) ?? DEFAULT_SETTINGS.domain,
+    locale: (data.locale as string) ?? DEFAULT_SETTINGS.locale,
+    allowRegistration: (data.allow_registration as boolean) ?? true,
+    requireAdminApproval: (data.require_admin_approval as boolean) ?? false,
+    defaultPassingScore: Number(data.default_passing_score ?? 60),
+    defaultGradingMethod:
+      (data.default_grading_method as PlatformSettings["defaultGradingMethod"]) ??
+      "highest",
+    defaultShowAnswers:
+      (data.default_show_answers as PlatformSettings["defaultShowAnswers"]) ??
+      "after_submit",
+    showScoreImmediately: (data.show_score_immediately as boolean) ?? true,
+  };
 }
 
 export { attemptStatusLabel };

@@ -17,10 +17,12 @@ import {
   currentStudent,
 } from "./mock";
 import * as sb from "./supabase";
+import { DEFAULT_SETTINGS } from "./types";
 import type {
   Course,
   GradebookRow,
   Meeting,
+  PlatformSettings,
   Profile,
   Question,
   Quiz,
@@ -68,6 +70,20 @@ export async function getCourse(slug: string): Promise<Course | undefined> {
   return mockCourses.find((c) => c.slug === slug);
 }
 
+export async function getCourseById(id: string): Promise<Course | undefined> {
+  if (live) return sb.getCourseById(id);
+  return mockCourses.find((c) => c.id === id);
+}
+
+export async function getMeetingsByCourseId(
+  courseId: string,
+): Promise<Meeting[]> {
+  if (live) return sb.getMeetingsByCourseId(courseId);
+  return mockMeetings
+    .filter((m) => m.courseId === courseId)
+    .sort((a, b) => a.order - b.order);
+}
+
 export async function getMeetings(courseSlug: string): Promise<Meeting[]> {
   if (live) return sb.getMeetings(courseSlug);
   return mockMeetings
@@ -83,6 +99,11 @@ export async function getMeeting(
   return mockMeetings.find(
     (m) => m.courseSlug === courseSlug && m.slug === meetingSlug,
   );
+}
+
+export async function getMeetingById(id: string): Promise<Meeting | undefined> {
+  if (live) return sb.getMeetingById(id);
+  return mockMeetings.find((m) => m.id === id);
 }
 
 export async function getQuiz(quizId: string): Promise<Quiz | undefined> {
@@ -127,4 +148,9 @@ export async function getGradebook(): Promise<GradebookRow[]> {
 export async function getMyResults(): Promise<ResultRow[]> {
   if (live) return sb.getMyResults();
   return mockResults;
+}
+
+export async function getSettings(): Promise<PlatformSettings> {
+  if (live) return sb.getSettings();
+  return DEFAULT_SETTINGS;
 }

@@ -99,50 +99,57 @@ async function main() {
   }
   console.log(`✓ enrolled ${studentIds.length} students into Kimia Dasar`);
 
-  // Seed one graded attempt for Emmil on the Termokimia quiz so the gradebook
-  // and results views show data immediately.
-  const { data: quiz } = await supabase
+  // Seed graded attempts so the gradebook/results show data immediately.
+  // NOTE: deliberately NO attempt for Emmil on P4 (Termokimia) — that quiz is
+  // left open so you can take it live (max_attempts = 1).
+  const idByEmail = new Map(STUDENTS.map((s, i) => [s.email, studentIds[i]]));
+
+  // quizzes keyed by meeting sort_order (P1..P4)
+  const { data: quizRows } = await supabase
     .from("quizzes")
-    .select("id, passing_score")
-    .eq("title", "Kuis Pertemuan 4 — Termokimia")
-    .maybeSingle();
-  const emmil = studentIds[0];
-  if (quiz && emmil) {
+    .select("id, passing_score, meetings(sort_order)");
+  const quizByP = new Map();
+  for (const q of quizRows ?? []) {
+    const p = q.meetings?.sort_order;
+    if (p) quizByP.set(p, q);
+  }
+
+  // [email, Pn, percentage] — mirrors the design gradebook
+  const ATTEMPTS = [
+    ["emmil@kampus.ac.id", 1, 72], ["emmil@kampus.ac.id", 2, 85], ["emmil@kampus.ac.id", 3, 90],
+    ["dian@kampus.ac.id", 1, 80], ["dian@kampus.ac.id", 2, 78], ["dian@kampus.ac.id", 3, 88],
+    ["rara@kampus.ac.id", 1, 68], ["rara@kampus.ac.id", 2, 74],
+    ["budi@kampus.ac.id", 1, 90], ["budi@kampus.ac.id", 2, 82], ["budi@kampus.ac.id", 3, 85],
+    ["nadia@kampus.ac.id", 1, 88], ["nadia@kampus.ac.id", 2, 91], ["nadia@kampus.ac.id", 3, 86], ["nadia@kampus.ac.id", 4, 92],
+  ];
+
+  let seeded = 0;
+  for (const [email, p, pct] of ATTEMPTS) {
+    const quiz = quizByP.get(p);
+    const studentId = idByEmail.get(email);
+    if (!quiz || !studentId) continue;
     const { data: existing } = await supabase
       .from("quiz_attempts")
       .select("id")
       .eq("quiz_id", quiz.id)
-      .eq("student_id", emmil)
+      .eq("student_id", studentId)
       .maybeSingle();
-    if (!existing) {
-      const { data: q } = await supabase
-        .from("questions")
-        .select("id, points")
-        .eq("quiz_id", quiz.id);
-      const maxScore = (q ?? []).reduce((s, x) => s + Number(x.points), 0) || 100;
-      const score = Math.round(maxScore * 0.8 * 100) / 100;
-      const pct = Math.round((score / maxScore) * 100 * 100) / 100;
-      const { data: att } = await supabase
-        .from("quiz_attempts")
-        .insert({
-          quiz_id: quiz.id,
-          student_id: emmil,
-          attempt_number: 1,
-          status: "graded",
-          submitted_at: new Date().toISOString(),
-          score,
-          max_score: maxScore,
-          percentage: pct,
-          passed: pct >= Number(quiz.passing_score ?? 60),
-          time_spent_seconds: 872,
-        })
-        .select("id")
-        .single();
-      console.log(`✓ seeded graded attempt for Emmil (${pct}%)`, att?.id ?? "");
-    } else {
-      console.log("• Emmil already has an attempt on the Termokimia quiz");
-    }
+    if (existing) continue;
+    await supabase.from("quiz_attempts").insert({
+      quiz_id: quiz.id,
+      student_id: studentId,
+      attempt_number: 1,
+      status: "graded",
+      submitted_at: new Date().toISOString(),
+      score: pct,
+      max_score: 100,
+      percentage: pct,
+      passed: pct >= Number(quiz.passing_score ?? 60),
+      time_spent_seconds: 600 + ((pct * 7) % 400),
+    });
+    seeded++;
   }
+  console.log(`✓ seeded ${seeded} graded attempts (Emmil's P4 left open for live testing)`);
 
   console.log("\nDone. Login as:");
   console.log(`  admin   → ${ADMIN.email} / ${ADMIN.password}`);

@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { createStudent, type StudentActionState } from "@/app/actions/admin-students";
 
 export function StudentsInvite() {
   const [open, setOpen] = useState(false);
+  const [state, formAction] = useActionState<StudentActionState, FormData>(
+    createStudent,
+    undefined,
+  );
 
   return (
     <>
@@ -14,6 +19,7 @@ export function StudentsInvite() {
             <p>Kelola siswa terdaftar dan undang siswa baru ke platform.</p>
           </div>
           <button
+            type="button"
             className="btn btn-primary"
             onClick={() => setOpen((v) => !v)}
           >
@@ -34,11 +40,12 @@ export function StudentsInvite() {
         </div>
       </div>
 
-      <div
+      <form
         className="card invite-panel"
         id="invitePanel"
         hidden={!open}
         style={{ marginBottom: "18px" }}
+        action={formAction}
       >
         <div className="card-head">
           <h3>Undang siswa baru</h3>
@@ -51,25 +58,44 @@ export function StudentsInvite() {
               <input
                 className="input"
                 id="iv-nama"
+                name="full_name"
                 placeholder="mis. Rifqi Maulana"
               />
             </div>
             <div className="field">
               <label htmlFor="iv-nim">NIM</label>
-              <input className="input mono" id="iv-nim" placeholder="21030243" />
+              <input
+                className="input mono"
+                id="iv-nim"
+                name="student_no"
+                placeholder="21030243"
+              />
             </div>
             <div className="field">
               <label htmlFor="iv-email">Email</label>
               <input
                 className="input"
                 id="iv-email"
+                name="email"
                 type="email"
                 placeholder="nama@kampus.ac.id"
               />
             </div>
           </div>
+
+          {state?.error ? (
+            <p className="muted" role="alert" style={{ color: "var(--danger, #d33)" }}>
+              {state.error}
+            </p>
+          ) : null}
+          {state?.message ? (
+            <p className="muted" role="status">
+              {state.message}
+            </p>
+          ) : null}
+
           <div className="row gap-sm">
-            <button className="btn btn-primary">
+            <button type="submit" className="btn btn-primary">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -82,12 +108,16 @@ export function StudentsInvite() {
               </svg>
               Kirim undangan
             </button>
-            <button className="btn btn-ghost" onClick={() => setOpen(false)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setOpen(false)}
+            >
               Batal
             </button>
           </div>
         </div>
-      </div>
+      </form>
     </>
   );
 }

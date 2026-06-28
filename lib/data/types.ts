@@ -201,3 +201,27 @@ export interface ActivityItem {
   meta: string;
   time: string;
 }
+
+export interface PlatformSettings {
+  siteName: string;
+  domain: string;
+  locale: string;
+  allowRegistration: boolean;
+  requireAdminApproval: boolean;
+  defaultPassingScore: number;
+  defaultGradingMethod: GradingMethod;
+  defaultShowAnswers: AnswersPolicy;
+  showScoreImmediately: boolean;
+}
+
+export const DEFAULT_SETTINGS: PlatformSettings = {
+  siteName: "Kimia Pintar",
+  domain: "kimiapintar.com",
+  locale: "id",
+  allowRegistration: true,
+  requireAdminApproval: false,
+  defaultPassingScore: 60,
+  defaultGradingMethod: "highest",
+  defaultShowAnswers: "after_submit",
+  showScoreImmediately: true,
+};

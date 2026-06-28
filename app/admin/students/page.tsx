@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { getStudents } from "@/lib/data";
+import { requireAdmin } from "@/lib/auth/dal";
+import { setStudentActive } from "@/app/actions/admin-students";
 import { StudentsInvite } from "./students-invite";
 
 export const metadata: Metadata = { title: "Siswa · Admin Kimia Pintar" };
@@ -20,6 +22,7 @@ const pageStyles = `
 `;
 
 export default async function AdminStudentsPage() {
+  await requireAdmin();
   const students = await getStudents();
 
   return (
@@ -78,7 +81,7 @@ export default async function AdminStudentsPage() {
                     <span className="nm">{s.fullName}</span>
                   </div>
                 </td>
-                <td className="mono">{s.studentNo}</td>
+                <td className="mono">{s.studentNo ?? "—"}</td>
                 <td className="muted">{s.email}</td>
                 <td>Kimia Dasar</td>
                 <td>
@@ -97,9 +100,17 @@ export default async function AdminStudentsPage() {
                     <Link className="btn btn-sm" href="/admin/gradebook">
                       Lihat nilai
                     </Link>
-                    <button className="btn btn-sm btn-ghost">
-                      {s.isActive ? "Nonaktifkan" : "Aktifkan"}
-                    </button>
+                    <form action={setStudentActive}>
+                      <input type="hidden" name="student_id" value={s.id} />
+                      <input
+                        type="hidden"
+                        name="is_active"
+                        value={s.isActive ? "false" : "true"}
+                      />
+                      <button type="submit" className="btn btn-sm btn-ghost">
+                        {s.isActive ? "Nonaktifkan" : "Aktifkan"}
+                      </button>
+                    </form>
                   </div>
                 </td>
               </tr>
