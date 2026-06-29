@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Tabs } from "@/components/ui/tabs";
-import { getCourse, getMeetings } from "@/lib/data";
+import { getCourse, getMeetings, getMyResults } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Kimia Dasar" };
 
@@ -54,6 +54,17 @@ export default async function CoursePage({
   const course = await getCourse(courseSlug);
   if (!course) notFound();
   const meetings = await getMeetings(courseSlug);
+  const allResults = await getMyResults();
+  const results = allResults.filter((r) => r.courseTitle === course.title);
+
+  const statusBadge: Record<
+    (typeof results)[number]["status"],
+    { className: string; label: string }
+  > = {
+    lulus: { className: "badge ok", label: "Lulus" },
+    "belum-lulus": { className: "badge warn", label: "Belum lulus" },
+    "belum-dikerjakan": { className: "badge", label: "Belum dikerjakan" },
+  };
 
   const pertemuan = (
     <div className="card">
@@ -174,75 +185,40 @@ export default async function CoursePage({
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>1 — Stoikiometri</td>
-            <td className="num">72</td>
-            <td>
-              <span className="badge warn">
-                <span className="dot" />
-                Lulus
-              </span>
-            </td>
-            <td>
-              <Link
-                href="/quiz/quiz-kd-04/result/att-kd04-emmil-1"
-                style={{ fontSize: "13px" }}
-              >
-                Lihat
-              </Link>
-            </td>
-          </tr>
-          <tr>
-            <td>2 — Struktur Atom</td>
-            <td className="num">85</td>
-            <td>
-              <span className="badge ok">
-                <span className="dot" />
-                Lulus
-              </span>
-            </td>
-            <td>
-              <Link
-                href="/quiz/quiz-kd-04/result/att-kd04-emmil-1"
-                style={{ fontSize: "13px" }}
-              >
-                Lihat
-              </Link>
-            </td>
-          </tr>
-          <tr>
-            <td>3 — Ikatan Kimia</td>
-            <td className="num">90</td>
-            <td>
-              <span className="badge ok">
-                <span className="dot" />
-                Lulus
-              </span>
-            </td>
-            <td>
-              <Link
-                href="/quiz/quiz-kd-04/result/att-kd04-emmil-1"
-                style={{ fontSize: "13px" }}
-              >
-                Lihat
-              </Link>
-            </td>
-          </tr>
-          <tr>
-            <td>4 — Termokimia</td>
-            <td className="num">—</td>
-            <td>
-              <span className="badge">
-                <span className="dot" />
-                Belum dikerjakan
-              </span>
-            </td>
-            <td>
-              <Link href="/quiz/quiz-kd-04" style={{ fontSize: "13px" }}>
-                Mulai
-              </Link>
-            </td>
-          </tr>
+          {results.map((r) => {
+            const badge = statusBadge[r.status];
+            return (
+              <tr key={`${r.quizId}-${r.meetingLabel}`}>
+                <td>
+                  {r.meetingLabel} — {r.meetingTitle}
+                </td>
+                <td className="num">{r.score ?? "—"}</td>
+                <td>
+                  <span className={badge.className}>
+                    <span className="dot" />
+                    {badge.label}
+                  </span>
+                </td>
+                <td>
+                  {r.attemptId ? (
+                    <Link
+                      href={`/quiz/${r.quizId}/result/${r.attemptId}`}
+                      style={{ fontSize: "13px" }}
+                    >
+                      Lihat
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/quiz/${r.quizId}`}
+                      style={{ fontSize: "13px" }}
+                    >
+                      Mulai
+                    </Link>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

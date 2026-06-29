@@ -50,6 +50,8 @@ export interface Course {
   description: string;
   /** Tailwind-free CSS gradient used for the cover/cap. */
   coverGradient: string;
+  /** Optional uploaded cover image URL (overrides the gradient when present). */
+  coverImageUrl?: string | null;
   color: string;
   sortOrder: number;
   isPublished: boolean;

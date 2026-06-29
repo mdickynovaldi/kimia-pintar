@@ -16,11 +16,17 @@ type LocalQuestion = {
   options: LocalOption[];
 };
 
+// All domain types appear so a question's existing type never blanks the select;
+// only the choice types get an option editor (others noted as manual/unsupported).
 const TYPES: { value: QuestionType; label: string }[] = [
   { value: "single_choice", label: "Pilihan tunggal" },
   { value: "multiple_choice", label: "Pilihan jamak" },
   { value: "true_false", label: "Benar / Salah" },
+  { value: "short_answer", label: "Isian singkat" },
+  { value: "essay", label: "Esai (nilai manual)" },
 ];
+
+const CHOICE_TYPES = new Set(["single_choice", "multiple_choice", "true_false"]);
 
 let counter = 0;
 const uid = () => `tmp-${counter++}`;
@@ -97,7 +103,19 @@ export function QuizBuilder({
           ],
         };
       }
-      return { ...q, type };
+      if (!CHOICE_TYPES.has(type)) {
+        // essay / short_answer / etc. carry no choice options
+        return { ...q, type, options: [] };
+      }
+      // (re)entering a choice type needs at least two options
+      const opts =
+        q.options.length >= 2
+          ? q.options
+          : [
+              { key: uid(), content: "", isCorrect: true },
+              { key: uid(), content: "", isCorrect: false },
+            ];
+      return { ...q, type, options: opts };
     });
 
   const toggleCorrect = (qKey: string, oKey: string) =>
@@ -121,7 +139,15 @@ export function QuizBuilder({
       options: [...q.options, { key: uid(), content: "", isCorrect: false }],
     }));
   const removeOption = (qKey: string, oKey: string) =>
-    patch(qKey, (q) => ({ ...q, options: q.options.filter((o) => o.key !== oKey) }));
+    patch(qKey, (q) => {
+      if (q.options.length <= 2) return q; // keep at least two choices
+      const options = q.options.filter((o) => o.key !== oKey);
+      // ensure at least one correct option remains for choice types
+      if (CHOICE_TYPES.has(q.type) && !options.some((o) => o.isCorrect)) {
+        options[0] = { ...options[0], isCorrect: true };
+      }
+      return { ...q, options };
+    });
 
   async function save() {
     setSaving(true);
@@ -176,10 +202,18 @@ export function QuizBuilder({
                 type="number"
                 min={0}
                 step={1}
-                value={q.points}
-                onChange={(e) =>
-                  patch(q.key, (x) => ({ ...x, points: Number(e.target.value) }))
-                }
+                value={Number.isFinite(q.points) ? q.points : ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  patch(q.key, (x) => ({
+                    ...x,
+                    points: v === "" ? Number.NaN : Math.max(0, Number(v) || 0),
+                  }));
+                }}
+                onBlur={(e) => {
+                  if (e.target.value === "")
+                    patch(q.key, (x) => ({ ...x, points: 1 }));
+                }}
               />
             </span>
             <button
@@ -200,6 +234,7 @@ export function QuizBuilder({
               onChange={(e) => patch(q.key, (x) => ({ ...x, prompt: e.target.value }))}
             />
 
+            {CHOICE_TYPES.has(q.type) ? (
             <div style={{ marginTop: "12px" }}>
               {q.options.map((o) => (
                 <div className={`opt-row${o.isCorrect ? " correct" : ""}`} key={o.key}>
@@ -252,6 +287,13 @@ export function QuizBuilder({
                 </button>
               ) : null}
             </div>
+            ) : (
+              <p className="muted" style={{ fontSize: "13px", marginTop: "12px" }}>
+                {q.type === "essay"
+                  ? "Jawaban esai dinilai manual oleh admin."
+                  : "Tipe ini tidak memakai pilihan jawaban."}
+              </p>
+            )}
 
             <div className="field" style={{ marginTop: "14px", marginBottom: 0 }}>
               <label>Pembahasan (opsional)</label>

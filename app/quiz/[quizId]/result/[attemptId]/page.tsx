@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getAttempt } from "@/lib/data";
+import { getAttempt, getQuiz } from "@/lib/data";
+import type { GradingMethod } from "@/lib/data";
+
+const GRADING_METHOD_LABELS: Record<GradingMethod, string> = {
+  highest: "tertinggi",
+  latest: "terakhir",
+  average: "rata-rata",
+  first: "pertama",
+};
 
 const pageStyles = `
   .hero { display: grid; grid-template-columns: auto 1fr; gap: clamp(18px, 4vw, 36px); align-items: center; }
@@ -48,10 +56,14 @@ export default async function QuizResultPage({
 }: {
   params: Promise<{ quizId: string; attemptId: string }>;
 }) {
-  const { attemptId } = await params;
-  const attempt = await getAttempt(attemptId);
-  if (!attempt) notFound();
+  const { quizId, attemptId } = await params;
+  const [attempt, quiz] = await Promise.all([
+    getAttempt(attemptId),
+    getQuiz(quizId),
+  ]);
+  if (!attempt || !quiz) notFound();
   const pct = attempt.percentage ?? 0;
+  const gradingLabel = GRADING_METHOD_LABELS[quiz.gradingMethod];
 
   return (
     <AppShell
@@ -81,7 +93,7 @@ export default async function QuizResultPage({
         </div>
         <div>
           <div className="row gap-sm" style={{ marginBottom: "6px" }}>
-            <span className="eyebrow">Kuis Pertemuan 4 — Termokimia</span>
+            <span className="eyebrow">{quiz.title}</span>
             {attempt.passed ? (
               <span className="badge ok">
                 <span className="dot" />
@@ -94,9 +106,13 @@ export default async function QuizResultPage({
               </span>
             )}
           </div>
-          <h1 style={{ marginBottom: "2px" }}>Kerja bagus, Emmil!</h1>
+          <h1 style={{ marginBottom: "2px" }}>
+            {attempt.passed ? "Kerja bagus!" : "Belum lulus, coba lagi"}
+          </h1>
           <p className="muted" style={{ fontSize: "13.5px" }}>
-            Nilai kamu melampaui ambang lulus 60%.
+            {attempt.passed
+              ? `Nilai kamu melampaui ambang lulus ${quiz.passingScore}%.`
+              : `Nilai kamu di bawah ambang lulus ${quiz.passingScore}%.`}
           </p>
           <div className="metrics">
             <div className="m">
@@ -133,7 +149,10 @@ export default async function QuizResultPage({
             <span>
               Kebijakan jawaban: jawaban benar ditampilkan setelah submit (
               <i>after_submit</i>). Nilai tercatat:{" "}
-              <b style={{ color: "var(--fg)" }}>{attempt.score} (tertinggi)</b>.
+              <b style={{ color: "var(--fg)" }}>
+                {attempt.score} ({gradingLabel})
+              </b>
+              .
             </span>
           </div>
         </div>
@@ -207,7 +226,10 @@ export default async function QuizResultPage({
       </div>
 
       <div className="row wrap" style={{ marginTop: "24px" }}>
-        <Link className="btn" href="/courses/kimia-dasar/termokimia">
+        <Link
+          className="btn"
+          href={`/courses/${quiz.courseSlug}/${quiz.meetingSlug}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"

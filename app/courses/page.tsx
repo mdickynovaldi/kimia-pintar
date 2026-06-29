@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { getCourses } from "@/lib/data";
+import { Catalog } from "./catalog";
 
 export const metadata: Metadata = { title: "Mata Kuliah" };
 
@@ -17,8 +17,6 @@ const coursesStyles = `
 
 export default async function CoursesPage() {
   const courses = await getCourses();
-  const kimiaDasar = courses.find((c) => c.slug === "kimia-dasar")!;
-  const comingSoon = courses.filter((c) => !c.isPublished);
 
   return (
     <AppShell variant="student" crumb={<b>Mata Kuliah</b>}>
@@ -32,48 +30,7 @@ export default async function CoursesPage() {
         </p>
       </div>
 
-      <div className="chips">
-        <button className="chip active">Semua</button>
-        <button className="chip">Terdaftar</button>
-        <button className="chip">Segera hadir</button>
-      </div>
-
-      <div className="grid grid-3">
-        <Link className="crs" href={`/courses/${kimiaDasar.slug}`}>
-          <div className="cap" style={{ background: kimiaDasar.coverGradient }}>
-            {kimiaDasar.title}
-          </div>
-          <div className="row between">
-            <div className="ttl">{kimiaDasar.title}</div>
-            <span className="badge ok">
-              <span className="dot" />
-              Terdaftar
-            </span>
-          </div>
-          <div className="muted" style={{ fontSize: "12.5px" }}>
-            8 pertemuan · 38% selesai
-          </div>
-          <div className="progress thin">
-            <i style={{ width: "38%" }} />
-          </div>
-        </Link>
-
-        {comingSoon.map((c) => (
-          <div key={c.id} className="crs" style={{ opacity: 0.65, cursor: "default" }}>
-            <div className="cap" style={{ background: c.coverGradient }}>
-              {c.title}
-            </div>
-            <div className="ttl">{c.title}</div>
-            <div className="muted" style={{ fontSize: "12.5px" }}>
-              Belum terdaftar
-            </div>
-            <span className="badge warn" style={{ alignSelf: "flex-start" }}>
-              <span className="dot" />
-              Segera hadir
-            </span>
-          </div>
-        ))}
-      </div>
+      <Catalog courses={courses} />
     </AppShell>
   );
 }

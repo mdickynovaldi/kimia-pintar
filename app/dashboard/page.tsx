@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { getCourses, getCurrentUser, getMyResults } from "@/lib/data";
+import {
+  getCourses,
+  getCurrentUser,
+  getMeetings,
+  getMyResults,
+} from "@/lib/data";
 
 export const metadata: Metadata = { title: "Beranda" };
 
@@ -23,15 +28,59 @@ const dashboardStyles = `
 `;
 
 export default async function DashboardPage() {
-  const [courses, user, results] = await Promise.all([
+  const [courses, user, results, meetings] = await Promise.all([
     getCourses(),
     getCurrentUser(),
     getMyResults(),
+    getMeetings("kimia-dasar"),
   ]);
   const kimiaDasar = (courses.find((c) => c.slug === "kimia-dasar") ??
     courses[0])!;
   const comingSoon = courses.filter((c) => !c.isPublished).slice(0, 2);
   const recent = results.slice().reverse().slice(0, 3);
+
+  // --- Stat-card computations (all derived from real data) ------------------
+  // "Kursus aktif": enrolled published courses. Kimia Dasar is the one the
+  // student is enrolled in; denominator is the full catalog size.
+  const enrolledCount = kimiaDasar.isPublished ? 1 : 0;
+  const totalCourses = courses.length;
+
+  // "Pertemuan selesai": meetings with a graded passing attempt. A passing
+  // attempt shows up in results as status 'lulus'.
+  const totalMeetings = meetings.length;
+  const completedMeetings = results.filter((r) => r.status === "lulus").length;
+  const progressPct =
+    totalMeetings > 0
+      ? Math.round((completedMeetings / totalMeetings) * 100)
+      : 0;
+
+  // "Rata-rata nilai": average of the scored quiz results.
+  const scoredResults = results.filter(
+    (r): r is typeof r & { score: number } => r.score !== null,
+  );
+  const avgScore =
+    scoredResults.length > 0
+      ? Math.round(
+          scoredResults.reduce((sum, r) => sum + r.score, 0) /
+            scoredResults.length,
+        )
+      : null;
+
+  // "Kuis menunggu": meetings that have a quiz but no graded attempt yet.
+  const gradedQuizIds = new Set(
+    results
+      .filter((r) => r.status !== "belum-dikerjakan")
+      .map((r) => r.quizId),
+  );
+  const pendingQuizMeetings = meetings.filter(
+    (m) => m.quizId !== null && !gradedQuizIds.has(m.quizId),
+  );
+  const pendingCount = pendingQuizMeetings.length;
+  const nextPending = pendingQuizMeetings[0];
+
+  // "Lanjut belajar": first meeting not yet completed.
+  const nextMeeting =
+    meetings.find((m) => m.state !== "completed") ?? meetings[0];
 
   const scoreBadge = (score: number | null) => {
     if (score === null) return "badge";
@@ -52,26 +101,32 @@ export default async function DashboardPage() {
         <div className="stat">
           <div className="k">Kursus aktif</div>
           <div className="v">
-            1<small> / 7</small>
+            {enrolledCount}
+            <small> / {totalCourses}</small>
           </div>
-          <div className="d">Kimia Dasar</div>
+          <div className="d">{kimiaDasar.title}</div>
         </div>
         <div className="stat">
           <div className="k">Pertemuan selesai</div>
           <div className="v">
-            3<small> / 8</small>
+            {completedMeetings}
+            <small> / {totalMeetings}</small>
           </div>
-          <div className="d">38% progres</div>
+          <div className="d">{progressPct}% progres</div>
         </div>
         <div className="stat">
           <div className="k">Rata-rata nilai</div>
-          <div className="v mono">82</div>
-          <div className="d">dari 4 kuis</div>
+          <div className="v mono">{avgScore ?? "—"}</div>
+          <div className="d">dari {scoredResults.length} kuis</div>
         </div>
         <div className="stat">
           <div className="k">Kuis menunggu</div>
-          <div className="v">1</div>
-          <div className="d">Pertemuan 4 · besok</div>
+          <div className="v">{pendingCount}</div>
+          <div className="d">
+            {nextPending
+              ? `${nextPending.label} · ${nextPending.title}`
+              : "Tidak ada"}
+          </div>
         </div>
       </div>
 
@@ -91,29 +146,33 @@ export default async function DashboardPage() {
           <path d="M74 60h52M68 72 92 118M132 72 108 118" />
         </svg>
         <span className="eyebrow">Lanjut belajar</span>
-        <h2>Pertemuan 4 — Termokimia</h2>
+        <h2>
+          {nextMeeting.label} — {nextMeeting.title}
+        </h2>
         <p>
-          Kamu berhenti di materi “Entalpi reaksi”. Lanjutkan, lalu kerjakan kuis
-          sebelum tenggat besok.
+          Lanjutkan materi “{nextMeeting.title}”, lalu kerjakan kuis sebelum
+          tenggat.
         </p>
         <div className="progress">
-          <i style={{ width: "45%" }} />
+          <i style={{ width: `${progressPct}%` }} />
         </div>
         <div className="row gap-sm">
           <Link
             className="btn btn-lg"
             style={{ background: "#fff", color: "#06302b" }}
-            href="/courses/kimia-dasar/termokimia"
+            href={`/courses/kimia-dasar/${nextMeeting.slug}`}
           >
             Lanjutkan materi
           </Link>
-          <Link
-            className="btn btn-lg btn-ghost"
-            style={{ color: "#fff", border: "1px solid rgba(255,255,255,.3)" }}
-            href="/quiz/quiz-kd-04"
-          >
-            Mulai kuis
-          </Link>
+          {nextMeeting.quizId && (
+            <Link
+              className="btn btn-lg btn-ghost"
+              style={{ color: "#fff", border: "1px solid rgba(255,255,255,.3)" }}
+              href={`/quiz/${nextMeeting.quizId}`}
+            >
+              Mulai kuis
+            </Link>
+          )}
         </div>
       </div>
 
@@ -131,11 +190,11 @@ export default async function DashboardPage() {
           <div>
             <div className="ttl">{kimiaDasar.title}</div>
             <div className="muted" style={{ fontSize: "12.5px" }}>
-              8 pertemuan · 38% selesai
+              {totalMeetings} pertemuan · {progressPct}% selesai
             </div>
           </div>
           <div className="progress thin">
-            <i style={{ width: "38%" }} />
+            <i style={{ width: `${progressPct}%` }} />
           </div>
         </Link>
         {comingSoon.map((c) => (

@@ -76,6 +76,7 @@ export async function updateCourse(fd: FormData): Promise<void> {
     is_published: bool(fd, "is_published"),
   };
   if (str(fd, "code")) patch.code = str(fd, "code").toUpperCase();
+  if (fd.has("cover_image_url")) patch.cover_image_url = str(fd, "cover_image_url") || null;
   const { error } = await supabase.from("courses").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${id}`);
@@ -149,6 +150,113 @@ export async function deleteMeeting(fd: FormData): Promise<void> {
   const { error } = await supabase.from("meetings").delete().eq("id", id);
   if (error) throw new Error(error.message);
   if (courseId) revalidatePath(`/admin/courses/${courseId}`);
+}
+
+/** Persist a new meeting order (drag-to-reorder). */
+export async function reorderMeetings(
+  courseId: string,
+  orderedIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  if (!courseId || !orderedIds.length) return { ok: false };
+  const supabase = await createClient();
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("meetings")
+      .update({ sort_order: i + 1 })
+      .eq("id", orderedIds[i]);
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath(`/admin/courses/${courseId}`);
+  return { ok: true };
+}
+
+/** Toggle a single meeting's publish state (per-row switch). */
+export async function toggleMeetingPublish(fd: FormData): Promise<void> {
+  await requireAdmin();
+  const id = str(fd, "id");
+  const courseId = str(fd, "course_id");
+  const next = str(fd, "is_published") === "true";
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("meetings").update({ is_published: next }).eq("id", id);
+  if (courseId) revalidatePath(`/admin/courses/${courseId}`);
+}
+
+/**
+ * Combined meeting save (detail + material + video) used by the client meeting
+ * editor so one "Simpan" persists everything. Attachment/cover come pre-uploaded
+ * (storage paths/urls) from the client via the upload actions.
+ */
+export interface SaveMeetingInput {
+  meetingId: string;
+  courseId: string;
+  title: string;
+  description: string;
+  isPublished: boolean;
+  material: {
+    id?: string;
+    title: string;
+    bodyHtml: string;
+    attachmentUrl?: string | null; // storage path in `files`, or null to clear
+  };
+  video: {
+    id?: string;
+    title: string;
+    provider: string;
+    sourceUrl: string;
+  };
+}
+
+export async function saveMeeting(
+  input: SaveMeetingInput,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const m = await supabase
+    .from("meetings")
+    .update({
+      title: input.title || "Pertemuan",
+      description: input.description || null,
+      is_published: input.isPublished,
+    })
+    .eq("id", input.meetingId);
+  if (m.error) return { ok: false, error: m.error.message };
+
+  // Material (upsert)
+  const matRow = {
+    meeting_id: input.meetingId,
+    title: input.material.title || "Materi",
+    body: input.material.bodyHtml,
+    attachment_url: input.material.attachmentUrl ?? null,
+  };
+  const mat = input.material.id
+    ? await supabase.from("materials").update(matRow).eq("id", input.material.id)
+    : await supabase.from("materials").insert(matRow);
+  if (mat.error) return { ok: false, error: mat.error.message };
+
+  // Video (upsert only when a source was provided)
+  if (input.video.sourceUrl || input.video.id) {
+    const vidRow = {
+      meeting_id: input.meetingId,
+      title: input.video.title || "Video pembelajaran",
+      provider: input.video.provider || "google_drive",
+      source_url: input.video.sourceUrl,
+      drive_file_id:
+        input.video.provider === "google_drive"
+          ? driveFileId(input.video.sourceUrl)
+          : null,
+    };
+    const vid = input.video.id
+      ? await supabase.from("videos").update(vidRow).eq("id", input.video.id)
+      : await supabase.from("videos").insert(vidRow);
+    if (vid.error) return { ok: false, error: vid.error.message };
+  }
+
+  revalidatePath(`/admin/courses/${input.courseId}`);
+  revalidatePath(`/admin/courses`, "layout");
+  return { ok: true };
 }
 
 // ---- Materials -------------------------------------------------------------

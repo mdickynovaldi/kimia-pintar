@@ -49,7 +49,8 @@ export function LoginForm() {
           <PasswordField id="pw" name="password" defaultValue="rahasia123" required />
         </div>
         <label className="checkrow" style={{ marginBottom: "20px" }}>
-          <input type="checkbox" defaultChecked /> Ingat saya di perangkat ini
+          <input type="checkbox" name="remember" defaultChecked /> Ingat saya di
+          perangkat ini
         </label>
 
         {state?.error ? (

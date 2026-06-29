@@ -154,3 +154,15 @@ export async function getSettings(): Promise<PlatformSettings> {
   if (live) return sb.getSettings();
   return DEFAULT_SETTINGS;
 }
+
+export async function getContentProgress(meetingId: string): Promise<string[]> {
+  if (live) return sb.getContentProgress(meetingId);
+  return [];
+}
+
+export async function getAttemptStats(
+  quizId: string,
+): Promise<{ used: number; max: number | null }> {
+  if (live) return sb.getAttemptStats(quizId);
+  return { used: 0, max: 1 };
+}

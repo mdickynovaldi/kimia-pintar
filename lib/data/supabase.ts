@@ -377,6 +377,43 @@ function secondsToLabel(s: number | null): string {
   return `${m}:${sec < 10 ? "0" : ""}${sec}`;
 }
 
+// ---- progress + attempt stats ----------------------------------------------
+
+/** Completed item ids (materials/videos) for the current user in a meeting. */
+export async function getContentProgress(meetingId: string): Promise<string[]> {
+  const user = await getSessionUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("content_progress")
+    .select("item_id")
+    .eq("student_id", user.id)
+    .eq("meeting_id", meetingId)
+    .eq("completed", true);
+  return (data ?? []).map((r) => r.item_id as string);
+}
+
+/** Attempts used vs allowed for the current user on a quiz. */
+export async function getAttemptStats(
+  quizId: string,
+): Promise<{ used: number; max: number | null }> {
+  const supabase = await createClient();
+  const { data: q } = await supabase
+    .from("quizzes")
+    .select("max_attempts")
+    .eq("id", quizId)
+    .maybeSingle();
+  const max = (q?.max_attempts as number | null) ?? null;
+  const user = await getSessionUser();
+  if (!user) return { used: 0, max };
+  const { count } = await supabase
+    .from("quiz_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("quiz_id", quizId)
+    .eq("student_id", user.id);
+  return { used: count ?? 0, max };
+}
+
 // ---- students / enrollments ------------------------------------------------
 
 export async function getStudents(): Promise<Profile[]> {

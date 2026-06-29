@@ -27,6 +27,7 @@ export default async function ProfilePage() {
         email={user.email}
         studentNo={user.studentNo ?? ""}
         initials={user.initials}
+        avatarUrl={user.avatarUrl}
       />
     </AppShell>
   );

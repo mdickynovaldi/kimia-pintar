@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { requestPasswordReset, type AuthState } from "@/app/actions/auth";
 
 /**
@@ -16,6 +16,9 @@ export function ForgotForm() {
     undefined,
   );
   const sent = Boolean(state?.message);
+  // Keep the submitted email so the success state can show it and "Kirim ulang"
+  // can re-submit the reset request for the same address.
+  const [email, setEmail] = useState("emmil@kampus.ac.id");
 
   return (
     <>
@@ -65,7 +68,8 @@ export function ForgotForm() {
                 name="email"
                 type="email"
                 placeholder="nama@kampus.ac.id"
-                defaultValue="emmil@kampus.ac.id"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
               />
@@ -140,7 +144,7 @@ export function ForgotForm() {
               color: "var(--muted)",
             }}
           >
-            Buka email di <b>emmil@kampus.ac.id</b> lalu klik tautan dari{" "}
+            Buka email di <b>{email}</b> lalu klik tautan dari{" "}
             <b>no-reply@kimiapintar.com</b>. Tautan berlaku terbatas dan hanya
             bisa dipakai sekali. Cek folder spam bila tidak muncul dalam beberapa
             menit.
@@ -169,20 +173,23 @@ export function ForgotForm() {
             className="row between"
             style={{ marginTop: "16px", fontSize: "13.5px" }}
           >
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              style={{
-                background: "none",
-                border: 0,
-                padding: 0,
-                font: "inherit",
-                color: "var(--accent-2)",
-                cursor: "pointer",
-              }}
-            >
-              Kirim ulang
-            </button>
+            <form action={formAction} style={{ display: "contents" }}>
+              <input type="hidden" name="email" value={email} />
+              <button
+                type="submit"
+                disabled={pending}
+                style={{
+                  background: "none",
+                  border: 0,
+                  padding: 0,
+                  font: "inherit",
+                  color: "var(--accent-2)",
+                  cursor: "pointer",
+                }}
+              >
+                {pending ? "Mengirim…" : "Kirim ulang"}
+              </button>
+            </form>
             <Link href="/login">Kembali ke Masuk</Link>
           </div>
         </div>

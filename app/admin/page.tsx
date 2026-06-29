@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="row wrap" style={{ marginBottom: "24px" }}>
-        <Link className="btn btn-primary" href="/admin/courses/crs-dasar">
+        <Link className="btn btn-primary" href="/admin/courses">
           <Plus />
           Buat mata kuliah
         </Link>

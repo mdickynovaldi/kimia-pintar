@@ -71,6 +71,7 @@ export function rowToCourse(
     title: row.title as string,
     description: (row.description as string) ?? "",
     coverGradient: gradientFor(slug),
+    coverImageUrl: (row.cover_image_url as string | null) ?? null,
     color: (row.color as string) ?? "oklch(55% 0.12 178)",
     sortOrder: (row.sort_order as number) ?? 0,
     isPublished: (row.is_published as boolean) ?? false,
@@ -81,14 +82,29 @@ export function rowToCourse(
 }
 
 export function rowToMaterial(row: Record<string, unknown>): Material {
-  const attachmentUrl = row.attachment_url as string | null;
+  const attachmentUrl = (row.attachment_url as string | null) ?? null;
+  let attachment: Material["attachment"];
+  if (attachmentUrl) {
+    if (/^https?:\/\//.test(attachmentUrl)) {
+      // already a full URL (legacy/seed)
+      attachment = { name: "Lampiran", meta: "Berkas", url: attachmentUrl };
+    } else {
+      // storage path in the private `files` bucket → served via signed-download route
+      const base = attachmentUrl.split("/").pop() ?? "lampiran";
+      const name = base.replace(/^\d+-/, "");
+      const ext = (name.split(".").pop() ?? "").toUpperCase();
+      attachment = {
+        name,
+        meta: ext ? `${ext}` : "Berkas",
+        url: `/api/files?path=${encodeURIComponent(attachmentUrl)}`,
+      };
+    }
+  }
   return {
     id: row.id as string,
     title: row.title as string,
     bodyHtml: (row.body as string) ?? "",
-    attachment: attachmentUrl
-      ? { name: "Lampiran", meta: "Berkas", url: attachmentUrl }
-      : undefined,
+    attachment,
     isPublished: (row.is_published as boolean) ?? true,
   };
 }

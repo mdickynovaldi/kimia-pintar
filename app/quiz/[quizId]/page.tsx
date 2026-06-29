@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { startQuiz } from "@/app/actions/quiz";
-import { getQuiz } from "@/lib/data";
+import { getAttemptStats, getQuiz } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Mulai Kuis" };
 
@@ -61,6 +61,10 @@ export default async function QuizIntroPage({
   const { quizId } = await params;
   const quiz = await getQuiz(quizId);
   if (!quiz) notFound();
+
+  const { used, max } = await getAttemptStats(quizId);
+  const attemptsExhausted = max !== null && used >= max;
+  const remaining = max !== null ? Math.max(max - used, 0) : null;
 
   return (
     <AppShell
@@ -152,9 +156,9 @@ export default async function QuizIntroPage({
             <div>
               <div className="rk">Percobaan</div>
               <div className="rv">
-                {quiz.maxAttempts} percobaan{" "}
+                {max ?? "∞"} percobaan{" "}
                 <span className="muted" style={{ fontWeight: 500 }}>
-                  (0/{quiz.maxAttempts} terpakai)
+                  ({used}/{max ?? "∞"} terpakai)
                 </span>
               </div>
             </div>
@@ -288,14 +292,18 @@ export default async function QuizIntroPage({
           style={{ fontSize: "13px", marginBottom: "18px" }}
         >
           <b style={{ color: "var(--fg)" }}>
-            Percobaan tersisa: {quiz.maxAttempts} dari {quiz.maxAttempts}
+            Percobaan tersisa: {remaining ?? "∞"}
           </b>
         </p>
 
         <div className="stack" style={{ gap: "10px" }}>
           <form action={startQuiz}>
             <input type="hidden" name="quizId" value={quizId} />
-            <button className="btn btn-primary btn-lg btn-block" type="submit">
+            <button
+              className="btn btn-primary btn-lg btn-block"
+              type="submit"
+              disabled={attemptsExhausted}
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -306,7 +314,7 @@ export default async function QuizIntroPage({
               >
                 <path d="M5 3l14 9-14 9V3z" />
               </svg>
-              Mulai Kuis
+              {attemptsExhausted ? "Percobaan habis" : "Mulai Kuis"}
             </button>
           </form>
           <Link
