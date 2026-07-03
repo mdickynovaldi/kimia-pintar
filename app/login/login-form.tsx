@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { login, type AuthState } from "@/app/actions/auth";
 import { PasswordField } from "@/components/ui/password-field";
 
@@ -16,6 +16,11 @@ export function LoginForm() {
     login,
     undefined,
   );
+  // Controlled so typed values survive React 19's post-action form reset when
+  // login fails (otherwise the email box is wiped on every wrong attempt).
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
 
   return (
     <>
@@ -34,9 +39,10 @@ export function LoginForm() {
             name="email"
             type="email"
             placeholder="nama@kampus.ac.id"
-            defaultValue="emmil@kampus.ac.id"
             required
             autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div className="field">
@@ -46,11 +52,23 @@ export function LoginForm() {
               Lupa sandi?
             </Link>
           </div>
-          <PasswordField id="pw" name="password" defaultValue="rahasia123" required />
+          <PasswordField
+            id="pw"
+            name="password"
+            required
+            value={password}
+            onChange={setPassword}
+          />
         </div>
         <label className="checkrow" style={{ marginBottom: "20px" }}>
-          <input type="checkbox" name="remember" defaultChecked /> Ingat saya di
-          perangkat ini
+          <input
+            type="checkbox"
+            name="remember"
+            value="true"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />{" "}
+          Ingat saya di perangkat ini
         </label>
 
         {state?.error ? (

@@ -10,7 +10,7 @@ import { PasswordField } from "@/components/ui/password-field";
  * updateUser({ password }) using the session from the email link). On success
  * the action redirects to /login.
  */
-export function ResetForm() {
+export function ResetForm({ email }: { email?: string | null }) {
   const [state, formAction, loading] = useActionState<AuthState, FormData>(
     updatePassword,
     undefined,
@@ -28,7 +28,11 @@ export function ResetForm() {
       <div className="card card-pad">
         <h1 style={{ fontSize: "1.5rem" }}>Atur ulang kata sandi</h1>
         <p className="muted" style={{ margin: "8px 0 20px" }}>
-          Buat kata sandi baru untuk akun <b>emmil@kampus.ac.id</b>.
+          {email ? (
+            <>Buat kata sandi baru untuk akun <b>{email}</b>.</>
+          ) : (
+            <>Buat kata sandi baru untuk akun kamu.</>
+          )}
         </p>
 
         <div

@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import { logout } from "@/app/actions/auth";
 import { Brand } from "./brand";
 import { ThemeToggle } from "./theme-toggle";
@@ -102,6 +108,19 @@ export function AppShell({
   const [navOpen, setNavOpen] = useState(false);
   const close = () => setNavOpen(false);
 
+  // On mobile the sidebar is an off-canvas drawer. When it's closed, keep its
+  // links out of the tab order / a11y tree via `inert` (matches the CSS
+  // drawer breakpoint at 860px). On desktop the sidebar is always visible.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const drawerHidden = isMobile && !navOpen;
+
   const sessionUser = useUser();
   const groups = variant === "admin" ? ADMIN_NAV : STUDENT_NAV;
   const foot = variant === "admin" ? ADMIN_FOOT : STUDENT_FOOT;
@@ -112,6 +131,7 @@ export function AppShell({
       : variant === "admin"
         ? { initials: "BM", name: "Bu Maya" }
         : { initials: "ES", name: "Emmil Saputra" });
+  const avatarPhoto = sessionUser?.avatarUrl ?? null;
 
   const isActive = (item: NavItem) => {
     if (item.noActive) return false;
@@ -147,7 +167,7 @@ export function AppShell({
   return (
     <div className={`app${navOpen ? " nav-open" : ""}`}>
       <div className="sidebar-scrim" onClick={close} />
-      <aside className="sidebar">
+      <aside className="sidebar" inert={drawerHidden}>
         <Brand admin={variant === "admin"} />
         {groups.map((g, gi) => (
           <div key={gi} style={{ display: "contents" }}>
@@ -170,6 +190,7 @@ export function AppShell({
             type="button"
             className="icon-btn menu-btn"
             aria-label="Menu"
+            aria-expanded={navOpen}
             onClick={() => setNavOpen((v) => !v)}
           >
             <Menu />
@@ -177,7 +198,20 @@ export function AppShell({
           <span className="crumb">{crumb}</span>
           <span className="spacer" />
           <ThemeToggle />
-          <div className="avatar" title={av.name}>
+          <div
+            className="avatar"
+            title={av.name}
+            style={
+              avatarPhoto
+                ? {
+                    backgroundImage: `url(${avatarPhoto})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    color: "transparent",
+                  }
+                : undefined
+            }
+          >
             {av.initials}
           </div>
         </header>

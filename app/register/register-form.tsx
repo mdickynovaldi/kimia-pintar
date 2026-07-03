@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { register, type AuthState } from "@/app/actions/auth";
 import { PasswordField } from "@/components/ui/password-field";
 
@@ -14,6 +14,13 @@ export function RegisterForm() {
     register,
     undefined,
   );
+  // Controlled so a validation error (e.g. mismatched password) doesn't wipe
+  // everything the user typed when React 19 resets the form post-action.
+  const [fullName, setFullName] = useState("");
+  const [studentNo, setStudentNo] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
 
   return (
     <>
@@ -41,9 +48,10 @@ export function RegisterForm() {
             name="full_name"
             type="text"
             placeholder="Mis. Emmil Saputra"
-            defaultValue="Emmil Saputra"
             required
             autoComplete="name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
           />
         </div>
         <div className="field">
@@ -55,9 +63,10 @@ export function RegisterForm() {
             type="text"
             inputMode="numeric"
             placeholder="Nomor induk mahasiswa"
-            defaultValue="21030210"
             required
             autoComplete="off"
+            value={studentNo}
+            onChange={(e) => setStudentNo(e.target.value)}
           />
           <span className="hint">Nomor induk mahasiswa, mis. 21030210.</span>
         </div>
@@ -69,9 +78,10 @@ export function RegisterForm() {
             name="email"
             type="email"
             placeholder="nama@kampus.ac.id"
-            defaultValue="emmil@kampus.ac.id"
             required
             autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div className="field">
@@ -82,6 +92,8 @@ export function RegisterForm() {
             placeholder="Minimal 8 karakter"
             autoComplete="new-password"
             required
+            value={password}
+            onChange={setPassword}
           />
         </div>
         <div className="field">
@@ -92,6 +104,8 @@ export function RegisterForm() {
             placeholder="Ulangi kata sandi"
             autoComplete="new-password"
             required
+            value={confirm}
+            onChange={setConfirm}
           />
         </div>
         <label

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
-import { getStudents } from "@/lib/data";
+import { getGradebook, getStudents } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth/dal";
 import { StudentsInvite } from "./students-invite";
 import { StudentsTable } from "./students-table";
@@ -22,16 +22,25 @@ const pageStyles = `
 
 export default async function AdminStudentsPage() {
   await requireAdmin();
-  const students = await getStudents();
+  const [students, gradebook] = await Promise.all([
+    getStudents(),
+    getGradebook(),
+  ]);
+  const gradesById = new Map(gradebook.map((g) => [g.studentId, g]));
 
-  const rows = students.map((s) => ({
-    id: s.id,
-    fullName: s.fullName,
-    studentNo: s.studentNo,
-    email: s.email,
-    initials: s.initials,
-    isActive: s.isActive,
-  }));
+  const rows = students.map((s) => {
+    const g = gradesById.get(s.id);
+    return {
+      id: s.id,
+      fullName: s.fullName,
+      studentNo: s.studentNo,
+      email: s.email,
+      initials: s.initials,
+      isActive: s.isActive,
+      quizScores: g?.quizScores ?? {},
+      average: g?.average ?? null,
+    };
+  });
 
   return (
     <AppShell variant="admin" crumb={<b>Siswa</b>}>

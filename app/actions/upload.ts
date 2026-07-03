@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireAdmin, requireUser } from "@/lib/auth/dal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasServiceRole } from "@/lib/supabase/env";
 
@@ -12,15 +12,22 @@ function rand(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-/** Upload an image to the public `media` bucket; returns a public URL. */
+/** Upload an image to the public `media` bucket; returns a public URL.
+ * Any signed-in user may upload (students: avatar; admins: covers/material images). */
 export async function uploadImage(
   formData: FormData,
 ): Promise<{ url?: string; error?: string }> {
-  await requireAdmin();
+  await requireUser();
   if (!hasServiceRole) return { error: "Storage belum dikonfigurasi (service role)." };
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Tidak ada berkas." };
-  if (!file.type.startsWith("image/")) return { error: "Berkas harus berupa gambar." };
+  // Only raster images. SVG is script-capable and lives in a public bucket, so
+  // it's rejected to avoid stored-XSS. Cap size to keep the public bucket sane.
+  const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type) || /\.svg$/i.test(file.name)) {
+    return { error: "Gambar harus PNG, JPG, WEBP, atau GIF." };
+  }
+  if (file.size > 5 * 1024 * 1024) return { error: "Ukuran gambar maksimal 5 MB." };
 
   const admin = createAdminClient();
   const path = `img/${Date.now()}-${rand()}.${ext(file.name)}`;

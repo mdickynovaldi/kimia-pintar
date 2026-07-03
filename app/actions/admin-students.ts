@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/dal";
-import { hasServiceRole } from "@/lib/supabase/env";
+import { hasServiceRole, isSupabaseConfigured } from "@/lib/supabase/env";
 
 export type StudentActionState = { error?: string; message?: string } | undefined;
 
@@ -65,6 +65,7 @@ export async function createStudent(
 
 export async function setStudentActive(fd: FormData): Promise<void> {
   await requireAdmin();
+  if (!isSupabaseConfigured) return; // mock mode no-op
   const studentId = (fd.get("student_id") ?? "").toString();
   const active = (fd.get("is_active") ?? "").toString() === "true";
   if (!studentId) return;

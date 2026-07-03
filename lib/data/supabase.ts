@@ -90,34 +90,33 @@ export async function getMeetings(courseSlug: string): Promise<Meeting[]> {
     .maybeSingle();
   if (!course) return [];
 
-  const { data: rows } = await supabase
-    .from("meetings")
-    .select("*, quizzes(id)")
-    .eq("course_id", course.id)
-    .order("sort_order");
+  const [{ data: rows }, completed] = await Promise.all([
+    supabase
+      .from("meetings")
+      .select("*, quizzes(id)")
+      .eq("course_id", course.id)
+      .order("sort_order"),
+    completedQuizIds(),
+  ]);
 
-  const completed = await completedQuizIds();
-
-  // "Continue where you left off": completed meetings (graded quiz), the first
-  // not-yet-completed meeting is available, the rest are locked.
-  const prepared = (rows ?? []).map((row: Row) => {
+  // Sequential unlock: a meeting is "completed" when its quiz has a graded
+  // attempt. Meetings stay unlocked until you hit an UNCOMPLETED quiz meeting —
+  // that one is available, everything after it is locked. Quiz-less meetings
+  // never block progression (avoids a permanent deadlock on content-only
+  // meetings that can never be "completed").
+  let blocked = false;
+  return (rows ?? []).map((row: Row) => {
     const quizId = (row.quizzes as Array<{ id: string }>)?.[0]?.id ?? null;
-    return {
-      row,
-      quizId,
-      order: (row.sort_order as number) ?? 0,
-      isCompleted: quizId ? completed.has(quizId) : false,
-    };
-  });
-  const firstIncomplete = prepared.find((m) => !m.isCompleted);
-  const openOrder = firstIncomplete ? firstIncomplete.order : Infinity;
-
-  return prepared.map(({ row, quizId, order, isCompleted }) => {
-    const state = isCompleted
-      ? "completed"
-      : order === openOrder
-        ? "available"
-        : "locked";
+    const isCompleted = quizId ? completed.has(quizId) : false;
+    let state: "completed" | "available" | "locked";
+    if (isCompleted) {
+      state = "completed";
+    } else if (blocked) {
+      state = "locked";
+    } else {
+      state = "available";
+      if (quizId) blocked = true; // must pass this quiz before later meetings
+    }
     return rowToMeeting(row, { courseSlug, state, quizId });
   });
 }
@@ -142,14 +141,14 @@ export async function getMeeting(
     .maybeSingle();
   if (!m) return undefined;
 
-  const [{ data: materials }, { data: videos }, { data: quiz }] =
+  const [{ data: materials }, { data: videos }, { data: quiz }, completed] =
     await Promise.all([
       supabase.from("materials").select("*").eq("meeting_id", m.id).order("sort_order"),
       supabase.from("videos").select("*").eq("meeting_id", m.id).order("sort_order"),
       supabase.from("quizzes").select("id").eq("meeting_id", m.id).maybeSingle(),
+      completedQuizIds(),
     ]);
 
-  const completed = await completedQuizIds();
   const quizId = (quiz?.id as string) ?? null;
   const state = quizId && completed.has(quizId) ? "completed" : "available";
 
@@ -283,7 +282,7 @@ export async function getAttempt(attemptId: string): Promise<QuizAttempt | null>
 
   const { data: a } = await supabase
     .from("quiz_attempts")
-    .select("*, quizzes(show_correct_answers, passing_score)")
+    .select("*, quizzes(show_correct_answers, passing_score, available_until)")
     .eq("id", attemptId)
     .maybeSingle();
   if (!a) return null;
@@ -291,10 +290,17 @@ export async function getAttempt(attemptId: string): Promise<QuizAttempt | null>
   // ownership guard (RLS already enforces this; double-check in code)
   if (user && a.student_id !== user.id && user.role !== "admin") return null;
 
-  const policy =
-    (a.quizzes as { show_correct_answers?: string } | null)
-      ?.show_correct_answers ?? "after_submit";
-  const reveal = policy === "after_submit" || policy === "after_close";
+  const quizMeta = a.quizzes as {
+    show_correct_answers?: string;
+    passing_score?: number;
+    available_until?: string | null;
+  } | null;
+  const policy = quizMeta?.show_correct_answers ?? "after_submit";
+  // after_close only reveals once the quiz's availability window has closed.
+  const closed =
+    !quizMeta?.available_until || new Date(quizMeta.available_until) < new Date();
+  const reveal =
+    policy === "after_submit" || (policy === "after_close" && closed);
 
   const { data: answers } = await supabase
     .from("attempt_answers")
@@ -406,11 +412,14 @@ export async function getAttemptStats(
   const max = (q?.max_attempts as number | null) ?? null;
   const user = await getSessionUser();
   if (!user) return { used: 0, max };
+  // Only FINALIZED attempts consume the limit — an abandoned in_progress attempt
+  // is resumable (see startQuiz), not a used-up try.
   const { count } = await supabase
     .from("quiz_attempts")
     .select("*", { count: "exact", head: true })
     .eq("quiz_id", quizId)
-    .eq("student_id", user.id);
+    .eq("student_id", user.id)
+    .neq("status", "in_progress");
   return { used: count ?? 0, max };
 }
 
@@ -423,7 +432,22 @@ export async function getStudents(): Promise<Profile[]> {
     .select("*")
     .eq("role", "student")
     .order("full_name");
-  return (data ?? []).map((r: Row) => rowToProfile(r));
+  const rows = data ?? [];
+
+  // Emails live in auth.users, not profiles — fetch them via the admin API.
+  const emailById = new Map<string, string>();
+  if (hasServiceRole && rows.length) {
+    const admin = createAdminClient();
+    for (let page = 1; page <= 10; page++) {
+      const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+      const users = list?.users ?? [];
+      for (const u of users) if (u.email) emailById.set(u.id, u.email);
+      if (users.length < 200) break;
+    }
+  }
+  return rows.map((r: Row) =>
+    rowToProfile(r, emailById.get(r.id as string) ?? null),
+  );
 }
 
 export async function getEnrollments() {

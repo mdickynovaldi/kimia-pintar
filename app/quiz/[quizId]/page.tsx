@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { startQuiz } from "@/app/actions/quiz";
-import { getAttemptStats, getQuiz } from "@/lib/data";
+import { getAttemptStats, getCourse, getMeeting, getQuiz } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Mulai Kuis" };
 
@@ -48,23 +48,30 @@ const gradingMethodLabel: Record<string, string> = {
 
 const answersPolicyLabel: Record<string, string> = {
   after_submit: "Tampil setelah submit",
-  immediately: "Tampil langsung",
+  after_close: "Setelah kuis ditutup",
   never: "Tidak ditampilkan",
-  after_due: "Setelah tenggat",
 };
 
 export default async function QuizIntroPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ quizId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { quizId } = await params;
+  const { error } = await searchParams;
   const quiz = await getQuiz(quizId);
   if (!quiz) notFound();
-
-  const { used, max } = await getAttemptStats(quizId);
+  const [{ used, max }, course, meeting] = await Promise.all([
+    getAttemptStats(quizId),
+    getCourse(quiz.courseSlug),
+    getMeeting(quiz.courseSlug, quiz.meetingSlug),
+  ]);
   const attemptsExhausted = max !== null && used >= max;
   const remaining = max !== null ? Math.max(max - used, 0) : null;
+  const courseTitle = course?.title ?? "Kursus";
+  const meetingLabel = meeting?.label ?? "Pertemuan";
 
   return (
     <AppShell
@@ -72,7 +79,7 @@ export default async function QuizIntroPage({
       contentClassName="narrow"
       crumb={
         <>
-          Kimia Dasar / Pertemuan 4 / <b>Kuis</b>
+          {courseTitle} / {meetingLabel} / <b>Kuis</b>
         </>
       }
     >
@@ -92,8 +99,10 @@ export default async function QuizIntroPage({
             <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" />
           </svg>
         </div>
-        <span className="eyebrow">Kimia Dasar · Pertemuan 4</span>
-        <h1 style={{ margin: "8px 0 6px" }}>Kuis Pertemuan 4 — Termokimia</h1>
+        <span className="eyebrow">
+          {courseTitle} · {meetingLabel}
+        </span>
+        <h1 style={{ margin: "8px 0 6px" }}>{quiz.title}</h1>
         <p className="muted" style={{ margin: "0 auto", maxWidth: "48ch" }}>
           Baca aturan di bawah sebelum memulai. Pastikan koneksi stabil — waktu
           pengerjaan dimulai begitu kamu menekan &quot;Mulai Kuis&quot;.
@@ -295,6 +304,17 @@ export default async function QuizIntroPage({
             Percobaan tersisa: {remaining ?? "∞"}
           </b>
         </p>
+
+        {error === "start" ? (
+          <p
+            role="alert"
+            className="badge danger"
+            style={{ display: "flex", margin: "0 0 12px", width: "100%" }}
+          >
+            Kuis belum bisa dimulai — mungkin di luar jadwal atau percobaan
+            sudah habis. Coba lagi nanti.
+          </p>
+        ) : null}
 
         <div className="stack" style={{ gap: "10px" }}>
           <form action={startQuiz}>

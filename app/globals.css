@@ -191,6 +191,14 @@ p { text-wrap: pretty; }
   font-size: 14px;
   cursor: pointer;
   transition: background .15s, color .15s;
+  /* reset native <button> chrome so the logout button matches the nav links */
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  line-height: inherit;
 }
 .nav-item:hover { background: var(--surface-2); color: var(--fg); text-decoration: none; }
 .nav-item.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
@@ -225,8 +233,9 @@ p { text-wrap: pretty; }
 .page-head h1 { margin-bottom: 6px; }
 .page-head p { color: var(--muted); max-width: 60ch; }
 
-/* hamburger (mobile) */
-.menu-btn { display: none; }
+/* hamburger (mobile) — .icon-btn.menu-btn outranks .icon-btn's display:grid,
+   so the burger stays hidden on desktop where the sidebar is always visible. */
+.icon-btn.menu-btn { display: none; }
 .sidebar-scrim { display: none; }
 
 /* ---- Buttons ----------------------------------------------- */
@@ -473,7 +482,7 @@ table.tbl td.num { font-family: var(--font-mono); text-align: right; }
   .app.nav-open .sidebar-scrim {
     display: block; position: fixed; inset: 0; background: rgba(8,12,20,.45); z-index: 35;
   }
-  .menu-btn { display: grid; }
+  .icon-btn.menu-btn { display: grid; }
 }
 @media (max-width: 680px) {
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }

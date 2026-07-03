@@ -51,11 +51,19 @@ export default async function CoursePage({
   params: Promise<{ courseSlug: string }>;
 }) {
   const { courseSlug } = await params;
-  const course = await getCourse(courseSlug);
+  const [course, meetings, allResults] = await Promise.all([
+    getCourse(courseSlug),
+    getMeetings(courseSlug),
+    getMyResults(),
+  ]);
   if (!course) notFound();
-  const meetings = await getMeetings(courseSlug);
-  const allResults = await getMyResults();
   const results = allResults.filter((r) => r.courseTitle === course.title);
+
+  const totalMeetings = meetings.length;
+  const completedCount = meetings.filter((m) => m.state === "completed").length;
+  const progressPct =
+    totalMeetings > 0 ? Math.round((completedCount / totalMeetings) * 100) : 0;
+  const quizCount = meetings.filter((m) => m.quizId).length;
 
   const statusBadge: Record<
     (typeof results)[number]["status"],
@@ -76,7 +84,10 @@ export default async function CoursePage({
           <div className="num">{String(m.order).padStart(2, "0")}</div>
           <div className="mid">
             <div className="mtl">{m.title}</div>
-            <div className="mmeta">Materi · Video · Kuis 10 soal</div>
+            <div className="mmeta">
+              {m.materials.length} materi · {m.videos.length} video
+              {m.quizId ? " · Kuis" : ""}
+            </div>
           </div>
           {m.state === "completed" && (
             <>
@@ -185,10 +196,10 @@ export default async function CoursePage({
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => {
+          {results.map((r, idx) => {
             const badge = statusBadge[r.status];
             return (
-              <tr key={`${r.quizId}-${r.meetingLabel}`}>
+              <tr key={r.attemptId ?? `${r.quizId}-${idx}`}>
                 <td>
                   {r.meetingLabel} — {r.meetingTitle}
                 </td>
@@ -250,19 +261,21 @@ export default async function CoursePage({
           <circle cx="100" cy="130" r="14" />
           <path d="M74 60h52M68 72 92 118M132 72 108 118" />
         </svg>
-        <span className="eyebrow">KIMIA-DASAR</span>
+        <span className="eyebrow">{course.slug.toUpperCase()}</span>
         <h1>{course.title}</h1>
         <p>{course.description}</p>
         <div className="progress">
-          <i style={{ width: "38%" }} />
+          <i style={{ width: `${progressPct}%` }} />
         </div>
         <div
           className="row gap-sm"
           style={{ fontSize: "13px", color: "rgba(255,255,255,.78)" }}
         >
-          <span>38% selesai</span>
+          <span>{progressPct}% selesai</span>
           <span>·</span>
-          <span>3 dari 8 pertemuan</span>
+          <span>
+            {completedCount} dari {totalMeetings} pertemuan
+          </span>
         </div>
         <div className="hbadges">
           <span className="hbadge">
@@ -281,8 +294,8 @@ export default async function CoursePage({
             </svg>
             Bu Maya
           </span>
-          <span className="hbadge">8 pertemuan</span>
-          <span className="hbadge">4 kuis</span>
+          <span className="hbadge">{totalMeetings} pertemuan</span>
+          <span className="hbadge">{quizCount} kuis</span>
           <span className="hbadge">
             <span
               className="dot"

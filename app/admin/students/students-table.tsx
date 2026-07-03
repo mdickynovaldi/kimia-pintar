@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { setStudentActive } from "@/app/actions/admin-students";
 
 type StudentRow = {
@@ -11,13 +10,127 @@ type StudentRow = {
   email: string;
   initials: string;
   isActive: boolean;
+  quizScores: Record<string, number | null>;
+  average: number | null;
 };
 
 type StatusFilter = "all" | "active" | "inactive";
 
+const modalStyles = `
+  .modal-scrim { position: fixed; inset: 0; background: rgba(8,12,20,.55); z-index: 90; display: grid; place-items: center; padding: 18px; }
+  .modal-card { width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .modal-head .spacer { flex: 1; }
+  .grade-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .grade-row:last-child { border-bottom: 0; }
+`;
+
+/** Badge variant for a score: ok >= 80, plain 60-79, danger < 60. */
+function scoreClass(score: number): string {
+  if (score >= 80) return "ok";
+  if (score >= 60) return "";
+  return "danger";
+}
+
+function GradesModal({
+  student,
+  onClose,
+}: {
+  student: StudentRow;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const entries = Object.entries(student.quizScores).sort(
+    (a, b) => Number(a[0].replace(/\D/g, "")) - Number(b[0].replace(/\D/g, "")),
+  );
+
+  return (
+    <div className="modal-scrim" onClick={onClose} role="presentation">
+      <div
+        className="card modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Nilai ${student.fullName}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-head">
+          <div className="avatar">{student.initials}</div>
+          <div>
+            <h3 style={{ marginBottom: 2 }}>{student.fullName}</h3>
+            <div className="muted mono" style={{ fontSize: "12px" }}>
+              {student.studentNo ?? "—"} · {student.email}
+            </div>
+          </div>
+          <span className="spacer" />
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Tutup"
+            onClick={onClose}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="card-pad">
+          {entries.length === 0 ? (
+            <p className="muted" style={{ fontSize: "13.5px" }}>
+              Belum ada nilai kuis untuk siswa ini.
+            </p>
+          ) : (
+            <>
+              {entries.map(([label, score]) => (
+                <div className="grade-row" key={label}>
+                  <span style={{ fontWeight: 600 }}>Kuis {label}</span>
+                  {score == null ? (
+                    <span className="muted mono">—</span>
+                  ) : (
+                    <span className={`badge ${scoreClass(score)} mono`.replace("  ", " ")}>
+                      {score}
+                    </span>
+                  )}
+                </div>
+              ))}
+              <div className="grade-row" style={{ borderTop: "1px solid var(--border)", marginTop: 4 }}>
+                <span style={{ fontWeight: 700, color: "var(--fg-strong)" }}>
+                  Rata-rata
+                </span>
+                {student.average == null ? (
+                  <span className="muted mono">—</span>
+                ) : (
+                  <span className={`badge ${scoreClass(student.average)} mono`.replace("  ", " ")}>
+                    {student.average}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StudentsTable({ students }: { students: StudentRow[] }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [viewing, setViewing] = useState<StudentRow | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -35,6 +148,7 @@ export function StudentsTable({ students }: { students: StudentRow[] }) {
 
   return (
     <>
+      <style>{modalStyles}</style>
       <div className="filterbar">
         <div className="input-group">
           <input
@@ -119,12 +233,13 @@ export function StudentsTable({ students }: { students: StudentRow[] }) {
                 </td>
                 <td>
                   <div className="row gap-sm">
-                    <Link
+                    <button
+                      type="button"
                       className="btn btn-sm"
-                      href={`/admin/gradebook?student=${s.id}`}
+                      onClick={() => setViewing(s)}
                     >
                       Lihat nilai
-                    </Link>
+                    </button>
                     <form action={setStudentActive}>
                       <input type="hidden" name="student_id" value={s.id} />
                       <input
@@ -150,6 +265,10 @@ export function StudentsTable({ students }: { students: StudentRow[] }) {
           </tbody>
         </table>
       </div>
+
+      {viewing ? (
+        <GradesModal student={viewing} onClose={() => setViewing(null)} />
+      ) : null}
     </>
   );
 }

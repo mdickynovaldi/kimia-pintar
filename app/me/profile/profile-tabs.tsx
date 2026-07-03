@@ -54,12 +54,17 @@ export function ProfileTabs({
     e.target.value = "";
     if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.set("file", file);
-    const res = await uploadImage(fd);
-    setUploading(false);
-    if (res.url) setAvatarUrl(res.url);
-    else alert(res.error ?? "Gagal mengunggah foto");
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await uploadImage(fd);
+      if (res.url) setAvatarUrl(res.url);
+      else alert(res.error ?? "Gagal mengunggah foto");
+    } catch {
+      alert("Gagal mengunggah foto");
+    } finally {
+      setUploading(false);
+    }
   }
 
   const profilPanel = (

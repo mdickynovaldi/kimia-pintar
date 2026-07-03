@@ -18,7 +18,7 @@ export function ForgotForm() {
   const sent = Boolean(state?.message);
   // Keep the submitted email so the success state can show it and "Kirim ulang"
   // can re-submit the reset request for the same address.
-  const [email, setEmail] = useState("emmil@kampus.ac.id");
+  const [email, setEmail] = useState("");
 
   return (
     <>

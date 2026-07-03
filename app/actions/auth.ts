@@ -19,6 +19,15 @@ function str(formData: FormData, key: string): string {
   return (formData.get(key) ?? "").toString().trim();
 }
 
+/** Only allow same-site relative paths as a post-login destination (prevents
+ * open-redirect: rejects absolute URLs, scheme-relative //host, and backslashes). */
+function safeNext(next: string): string {
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+    return "";
+  }
+  return next;
+}
+
 // ---- Login -----------------------------------------------------------------
 export async function login(
   _prev: AuthState,
@@ -26,13 +35,15 @@ export async function login(
 ): Promise<AuthState> {
   const email = str(formData, "email");
   const password = str(formData, "password");
-  const next = str(formData, "next");
+  const next = safeNext(str(formData, "next"));
+  const remember = str(formData, "remember") === "true";
 
   if (!isSupabaseConfigured) redirect(next || "/dashboard"); // mock mode
 
   if (!email || !password) return { error: "Email dan kata sandi wajib diisi." };
 
-  const supabase = await createClient();
+  // Unchecked "Ingat saya" → session cookies that clear on browser close.
+  const supabase = await createClient({ persistSession: remember });
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return { error: "Email atau kata sandi salah." };
@@ -63,11 +74,15 @@ export async function register(
   const email = str(formData, "email");
   const studentNo = str(formData, "student_no");
   const password = str(formData, "password");
+  const confirm = str(formData, "confirm");
 
   if (!isSupabaseConfigured) redirect("/dashboard"); // mock mode
 
   if (!fullName || !email || password.length < 8) {
     return { error: "Lengkapi nama, email, dan kata sandi (min. 8 karakter)." };
+  }
+  if (confirm && password !== confirm) {
+    return { error: "Konfirmasi kata sandi tidak cocok." };
   }
 
   const supabase = await createClient();

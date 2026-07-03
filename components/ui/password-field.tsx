@@ -8,20 +8,26 @@ interface PasswordFieldProps {
   name?: string;
   placeholder?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
   autoComplete?: string;
   required?: boolean;
 }
 
-/** Password input with a show/hide reveal toggle (.input-group + .trail). */
+/** Password input with a show/hide reveal toggle (.input-group + .trail).
+ * Uncontrolled by default; pass `value` + `onChange` to control it. */
 export function PasswordField({
   id,
   name,
   placeholder = "••••••••",
   defaultValue,
+  value,
+  onChange,
   autoComplete = "current-password",
   required,
 }: PasswordFieldProps) {
   const [shown, setShown] = useState(false);
+  const controlled = value !== undefined;
   return (
     <div className="input-group">
       <input
@@ -30,7 +36,9 @@ export function PasswordField({
         name={name ?? id}
         type={shown ? "text" : "password"}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        {...(controlled
+          ? { value, onChange: (e) => onChange?.(e.target.value) }
+          : { defaultValue })}
         autoComplete={autoComplete}
         required={required}
       />
