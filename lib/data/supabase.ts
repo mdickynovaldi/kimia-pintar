@@ -926,10 +926,12 @@ export async function getMyResults(): Promise<ResultRow[]> {
 /** Attempts waiting for manual grading, newest submissions first. */
 export async function getGradingQueue(): Promise<GradingQueueItem[]> {
   const supabase = await createClient();
+  // profiles!student_id disambiguates: quiz_attempts has two FKs to profiles
+  // (student_id + graded_by), so a bare profiles(...) embed is ambiguous.
   const { data } = await supabase
     .from("quiz_attempts")
     .select(
-      "id, submitted_at, profiles(full_name), quizzes(title, meetings(sort_order))",
+      "id, submitted_at, profiles!student_id(full_name), quizzes(title, meetings(sort_order))",
     )
     .eq("status", "awaiting_manual_grade")
     .order("submitted_at", { ascending: false });
@@ -959,7 +961,7 @@ export async function getGradingDetail(
   const { data: a } = await supabase
     .from("quiz_attempts")
     .select(
-      "id, quiz_id, submitted_at, profiles(full_name), quizzes(title, passing_score)",
+      "id, quiz_id, submitted_at, profiles!student_id(full_name), quizzes(title, passing_score)",
     )
     .eq("id", attemptId)
     .maybeSingle();

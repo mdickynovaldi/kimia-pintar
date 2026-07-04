@@ -34,17 +34,38 @@ export async function POST(
     return NextResponse.json({ error: "expired" }, { status: 409 });
   }
 
-  const { error } = await supabase.from("attempt_answers").upsert(
-    {
+  // NB: an upsert with onConflict would emit INSERT ... ON CONFLICT DO UPDATE
+  // SET including the conflict-target columns (attempt_id/question_id). Students
+  // only hold column-level UPDATE grants on the value columns (migration 0005),
+  // so Postgres rejects assigning attempt_id/question_id → 403. Split into
+  // UPDATE-then-INSERT so the UPDATE never touches the identity columns.
+  const now = new Date().toISOString();
+  const values = {
+    selected_option_ids: body.selectedOptionIds ?? [],
+    answer_text: body.answerText ?? null,
+    answered_at: now,
+  };
+
+  const { data: updated, error: upErr } = await supabase
+    .from("attempt_answers")
+    .update(values)
+    .eq("attempt_id", id)
+    .eq("question_id", body.questionId)
+    .select("id");
+  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+
+  if (!updated || updated.length === 0) {
+    const { error: insErr } = await supabase.from("attempt_answers").insert({
       attempt_id: id,
       question_id: body.questionId,
-      selected_option_ids: body.selectedOptionIds ?? [],
-      answer_text: body.answerText ?? null,
-      answered_at: new Date().toISOString(),
-    },
-    { onConflict: "attempt_id,question_id" },
-  );
+      ...values,
+    });
+    // A concurrent first-save may have inserted between our UPDATE and INSERT;
+    // treat the unique-violation as success (the row now exists with a value).
+    if (insErr && insErr.code !== "23505") {
+      return NextResponse.json({ error: insErr.message }, { status: 400 });
+    }
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

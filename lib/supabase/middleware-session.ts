@@ -10,6 +10,11 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./env";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Honor an unchecked "Ingat saya": login drops a `kp-remember=0` marker, and
+  // here we downgrade the rotated auth cookies to session cookies so a token
+  // refresh doesn't silently re-persist them for 400 days.
+  const sessionOnly = request.cookies.get("kp-remember")?.value === "0";
+
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
@@ -20,9 +25,12 @@ export async function updateSession(request: NextRequest) {
           request.cookies.set(name, value),
         );
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
+        cookiesToSet.forEach(({ name, value, options }) => {
+          const finalOptions = sessionOnly
+            ? { ...options, maxAge: undefined, expires: undefined }
+            : options;
+          response.cookies.set(name, value, finalOptions);
+        });
       },
     },
   });

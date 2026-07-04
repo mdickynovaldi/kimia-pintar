@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -43,7 +43,11 @@ export async function login(
 
   if (!email || !password) return { error: "Email dan kata sandi wajib diisi." };
 
-  // Unchecked "Ingat saya" → session cookies that clear on browser close.
+  // Unchecked "Ingat saya" → session cookies that clear on browser close. The
+  // marker cookie lets the proxy keep them session-only across token refreshes.
+  const cookieStore = await cookies();
+  if (remember) cookieStore.delete("kp-remember");
+  else cookieStore.set("kp-remember", "0", { httpOnly: true, sameSite: "lax", path: "/" });
   const supabase = await createClient({ persistSession: remember });
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {

@@ -292,12 +292,12 @@ export default async function DashboardPage() {
             <div>
               <div className="ttl">{c.title}</div>
               <div className="muted" style={{ fontSize: "12.5px" }}>
-                Belum terdaftar
+                {c.isPublished ? "Belum terdaftar" : "Belum tersedia"}
               </div>
             </div>
             <span className="badge warn" style={{ alignSelf: "flex-start" }}>
               <span className="dot" />
-              Segera hadir
+              {c.isPublished ? "Hubungi admin" : "Segera hadir"}
             </span>
           </div>
         ))}

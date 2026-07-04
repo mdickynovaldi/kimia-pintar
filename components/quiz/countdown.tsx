@@ -31,12 +31,19 @@ export function Countdown({
       : seconds,
   );
   const expired = useRef(false);
+  // Keep the latest onExpire without making it a tick-effect dependency —
+  // otherwise a fresh closure from the parent restarts the 1s timer every
+  // render and the countdown can stall.
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     if (left <= 0) {
       if (!expired.current) {
         expired.current = true;
-        onExpire?.();
+        onExpireRef.current?.();
       }
       return;
     }
@@ -54,7 +61,7 @@ export function Countdown({
       }
     }, 1000);
     return () => clearTimeout(t);
-  }, [left, deadline, onExpire]);
+  }, [left, deadline]);
 
   const warn = left <= 60 && left > 0;
   const over = left <= 0;

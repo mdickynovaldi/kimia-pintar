@@ -148,6 +148,20 @@ export function QuizPlayer({
     }, 700);
   }
 
+  // Cancel pending debounces and persist every text answer's current value —
+  // called before submit so the last keystrokes aren't dropped by the 700ms gap.
+  async function flushTextAnswers() {
+    if (!attemptId) return;
+    const pending = Object.entries(texts).filter(([qid]) => {
+      const q = questions.find((x) => x.id === qid);
+      return q && TEXT_TYPES.has(q.type);
+    });
+    for (const t of Object.values(debouncers.current)) clearTimeout(t);
+    await Promise.all(
+      pending.map(([qid, val]) => persist(qid, [], val.trim() ? val : null)),
+    );
+  }
+
   async function finish(auto = false) {
     if (finished.current) return;
     if (!attemptId) {
@@ -163,6 +177,7 @@ export function QuizPlayer({
     setSubmitting(true);
     setSubmitError(null);
     try {
+      await flushTextAnswers(); // save last keystrokes before grading
       const res = await fetch(`/api/attempts/${attemptId}/submit`, {
         method: "POST",
       });

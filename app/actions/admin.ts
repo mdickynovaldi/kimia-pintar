@@ -332,26 +332,34 @@ export async function saveEnrollments(fd: FormData): Promise<void> {
   const studentIds = fd.getAll("student_id").map((s) => s.toString());
   const supabase = await createClient();
 
+  // Only "active" rows count as enrolled. Removed students are soft-dropped
+  // (status='dropped'), NOT deleted — otherwise re-publishing the course would
+  // let auto_enroll_on_publish re-add them (its ON CONFLICT DO NOTHING leaves a
+  // dropped row untouched, but a deleted row would be re-inserted as active).
   const { data: current } = await supabase
     .from("enrollments")
-    .select("student_id")
+    .select("student_id, status")
     .eq("course_id", courseId);
-  const currentIds = new Set((current ?? []).map((r) => r.student_id as string));
+  const activeIds = new Set(
+    (current ?? []).filter((r) => r.status === "active").map((r) => r.student_id as string),
+  );
   const nextIds = new Set(studentIds);
 
-  const toAdd = studentIds.filter((id) => !currentIds.has(id));
-  const toRemove = [...currentIds].filter((id) => !nextIds.has(id));
+  const toAdd = studentIds.filter((id) => !activeIds.has(id));
+  const toRemove = [...activeIds].filter((id) => !nextIds.has(id));
 
   if (toAdd.length) {
-    const { error } = await supabase.from("enrollments").insert(
+    // upsert reactivates a previously-dropped row instead of colliding.
+    const { error } = await supabase.from("enrollments").upsert(
       toAdd.map((student_id) => ({ course_id: courseId, student_id, status: "active" })),
+      { onConflict: "course_id,student_id" },
     );
     if (error) throw new Error(error.message); // surfaced by app/error.tsx
   }
   if (toRemove.length) {
     const { error } = await supabase
       .from("enrollments")
-      .delete()
+      .update({ status: "dropped" })
       .eq("course_id", courseId)
       .in("student_id", toRemove);
     if (error) throw new Error(error.message);
