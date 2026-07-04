@@ -28,6 +28,8 @@ export default async function ProfilePage() {
         studentNo={user.studentNo ?? ""}
         initials={user.initials}
         avatarUrl={user.avatarUrl}
+        role={user.role}
+        isActive={user.isActive}
       />
     </AppShell>
   );

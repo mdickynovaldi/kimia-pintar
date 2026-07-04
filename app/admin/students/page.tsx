@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/dal";
 import { StudentsInvite } from "./students-invite";
 import { StudentsTable } from "./students-table";
 
-export const metadata: Metadata = { title: "Siswa · Admin Kimia Pintar" };
+export const metadata: Metadata = { title: "Siswa · Admin" };
 
 const pageStyles = `
   .chip-row { display:flex; gap:8px; flex-wrap:wrap; }

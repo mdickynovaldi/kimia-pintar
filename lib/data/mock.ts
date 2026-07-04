@@ -61,6 +61,13 @@ export const courses: Course[] = [
     meetingCount: 8,
     quizCount: 4,
     instructor: "Bu Maya",
+    objectives: [
+      "Menghitung mol, massa molar, dan persamaan reaksi setara.",
+      "Menjelaskan konfigurasi elektron dan tabel periodik.",
+      "Membedakan ikatan ion, kovalen, dan logam.",
+      "Menerapkan konsep entalpi pada reaksi eksoterm dan endoterm.",
+      "Menganalisis laju reaksi, kesetimbangan, serta reaksi asam-basa dan redoks.",
+    ],
   },
   {
     id: "crs-organik",
@@ -75,6 +82,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
   {
     id: "crs-anorganik",
@@ -89,6 +97,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
   {
     id: "crs-biokimia",
@@ -103,6 +112,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
   {
     id: "crs-analitik",
@@ -117,6 +127,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
   {
     id: "crs-fisika",
@@ -131,6 +142,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
   {
     id: "crs-instrumen",
@@ -145,6 +157,7 @@ export const courses: Course[] = [
     meetingCount: 0,
     quizCount: 0,
     instructor: "Bu Maya",
+    objectives: [],
   },
 ];
 
@@ -244,6 +257,8 @@ export const termokimiaQuiz: Quiz = {
   showScoreImmediately: true,
   questionsPerPage: 1,
   allowBacktrack: true,
+  availableFrom: null,
+  availableUntil: null,
   isPublished: true,
   questions: [
     {
@@ -505,10 +520,10 @@ export const gradebook: GradebookRow[] = [
 ];
 
 export const studentResults: ResultRow[] = [
-  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 1", meetingTitle: "Stoikiometri", quizId: "quiz-kd-01", attemptId: "att-kd01-emmil-1", score: 72, status: "lulus" },
-  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 2", meetingTitle: "Struktur Atom", quizId: "quiz-kd-02", attemptId: "att-kd02-emmil-1", score: 85, status: "lulus" },
-  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 3", meetingTitle: "Ikatan Kimia", quizId: "quiz-kd-03", attemptId: "att-kd03-emmil-1", score: 90, status: "lulus" },
-  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 4", meetingTitle: "Termokimia", quizId: "quiz-kd-04", attemptId: "att-kd04-emmil-1", score: 80, status: "lulus" },
+  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 1", meetingTitle: "Stoikiometri", quizId: "quiz-kd-01", attemptId: "att-kd01-emmil-1", score: 72, status: "lulus", date: "2026-06-01T09:15:00Z", attemptsUsed: 1, maxAttempts: 1, passingScore: 60 },
+  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 2", meetingTitle: "Struktur Atom", quizId: "quiz-kd-02", attemptId: "att-kd02-emmil-1", score: 85, status: "lulus", date: "2026-06-08T10:02:00Z", attemptsUsed: 1, maxAttempts: 1, passingScore: 60 },
+  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 3", meetingTitle: "Ikatan Kimia", quizId: "quiz-kd-03", attemptId: "att-kd03-emmil-1", score: 90, status: "lulus", date: "2026-06-15T08:44:00Z", attemptsUsed: 1, maxAttempts: 1, passingScore: 60 },
+  { courseTitle: "Kimia Dasar", meetingLabel: "Pertemuan 4", meetingTitle: "Termokimia", quizId: "quiz-kd-04", attemptId: "att-kd04-emmil-1", score: 80, status: "lulus", date: "2026-06-22T13:30:00Z", attemptsUsed: 1, maxAttempts: 1, passingScore: 60 },
 ];
 
 export const recentActivity: ActivityItem[] = [

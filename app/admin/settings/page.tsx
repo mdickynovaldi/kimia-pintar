@@ -4,7 +4,7 @@ import { saveSettings } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth/dal";
 import { getSettings } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Pengaturan · Admin Kimia Pintar" };
+export const metadata: Metadata = { title: "Pengaturan · Admin" };
 
 const pageStyles = `
   .set-row { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }

@@ -144,31 +144,10 @@ export function ForgotForm() {
               color: "var(--muted)",
             }}
           >
-            Buka email di <b>{email}</b> lalu klik tautan dari{" "}
-            <b>no-reply@kimiapintar.com</b>. Tautan berlaku terbatas dan hanya
-            bisa dipakai sekali. Cek folder spam bila tidak muncul dalam beberapa
-            menit.
+            Buka kotak masuk <b>{email}</b> lalu klik tautan atur ulang kata
+            sandi di dalamnya. Tautan berlaku terbatas dan hanya bisa dipakai
+            sekali. Cek folder spam bila tidak muncul dalam beberapa menit.
           </div>
-          <a
-            className="btn btn-primary btn-block btn-lg"
-            href="https://mail.google.com"
-            target="_blank"
-            rel="noopener"
-            style={{ marginTop: "18px" }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="m3 7 9 6 9-6" />
-            </svg>
-            Buka email
-          </a>
           <div
             className="row between"
             style={{ marginTop: "16px", fontSize: "13.5px" }}

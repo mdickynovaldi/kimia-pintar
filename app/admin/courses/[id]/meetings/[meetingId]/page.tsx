@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { MeetingEditor } from "@/components/admin/meeting-editor";
 import { requireAdmin } from "@/lib/auth/dal";
 import { getCourseById, getMeetingById, getQuiz } from "@/lib/data";
+
+export const metadata: Metadata = { title: "Editor Pertemuan · Admin" };
 
 export default async function AdminMeetingEditPage({
   params,

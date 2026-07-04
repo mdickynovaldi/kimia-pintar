@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { CompleteToggle } from "@/components/student/complete-toggle";
+import { getCurrentUser } from "@/lib/data";
 import {
   getContentProgress,
   getCourse,
@@ -35,13 +37,28 @@ const meetingStyles = `
   }
 `;
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ courseSlug: string; meetingSlug: string }>;
+}): Promise<Metadata> {
+  const { courseSlug, meetingSlug } = await params;
+  const meeting = await getMeeting(courseSlug, meetingSlug);
+  return {
+    title: meeting ? `${meeting.label} — ${meeting.title}` : "Pertemuan",
+  };
+}
+
 function embedUrl(video: { provider: string; driveFileId: string | null; sourceUrl: string }): string | null {
   if (video.provider === "google_drive") {
     const id =
       video.driveFileId ||
       video.sourceUrl.match(/\/file\/d\/([\w-]+)/)?.[1] ||
       video.sourceUrl.match(/[?&]id=([\w-]+)/)?.[1];
-    return id ? `https://drive.google.com/file/d/${id}/preview` : null;
+    // Seed placeholder ids ("CONTOH_ID") render a broken Drive error frame —
+    // treat them as "no video yet".
+    if (!id || /^contoh/i.test(id)) return null;
+    return `https://drive.google.com/file/d/${id}/preview`;
   }
   const yt = video.sourceUrl.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{6,})/)?.[1];
   return yt ? `https://www.youtube.com/embed/${yt}` : null;
@@ -56,12 +73,23 @@ export default async function MeetingPage({
   const meeting = await getMeeting(courseSlug, meetingSlug);
   if (!meeting) notFound();
 
-  const [course, allMeetings, completedIds] = await Promise.all([
+  const [course, allMeetings, completedIds, user] = await Promise.all([
     getCourse(courseSlug),
     getMeetings(courseSlug),
     getContentProgress(meeting.id),
+    getCurrentUser(),
   ]);
-  const courseTitle = course?.title ?? "Kimia Dasar";
+  const courseTitle = course?.title ?? "Kursus";
+
+  // Sequential lock is enforced here, not just drawn on the course page:
+  // opening a locked meeting by URL bounces back to the course overview.
+  // (getMeetings carries the authoritative per-student state.)
+  const listed = allMeetings.find((m) => m.id === meeting.id);
+  const state = listed?.state ?? meeting.state;
+  if (state === "locked" && user.role !== "admin") {
+    redirect(`/courses/${courseSlug}`);
+  }
+
   const quiz = meeting.quizId ? await getQuiz(meeting.quizId) : undefined;
 
   const material = meeting.materials[0];
@@ -75,7 +103,11 @@ export default async function MeetingPage({
 
   const idx = allMeetings.findIndex((m) => m.id === meeting.id);
   const prev = idx > 0 ? allMeetings[idx - 1] : null;
-  const next = idx >= 0 && idx < allMeetings.length - 1 ? allMeetings[idx + 1] : null;
+  const nextCandidate =
+    idx >= 0 && idx < allMeetings.length - 1 ? allMeetings[idx + 1] : null;
+  // The next-rail never links into a locked meeting.
+  const next =
+    nextCandidate && nextCandidate.state !== "locked" ? nextCandidate : null;
 
   const vidEmbed = video ? embedUrl(video) : null;
 
@@ -99,11 +131,17 @@ export default async function MeetingPage({
               {meeting.title}
             </h1>
             <div className="row wrap gap-sm">
-              <span className="badge accent"><span className="dot" />Tersedia</span>
-              <span className="badge">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                ~{meeting.readingMinutes} menit baca
-              </span>
+              {state === "completed" ? (
+                <span className="badge ok"><span className="dot" />Selesai</span>
+              ) : (
+                <span className="badge accent"><span className="dot" />Tersedia</span>
+              )}
+              {meeting.readingMinutes > 0 ? (
+                <span className="badge">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  ~{meeting.readingMinutes} menit baca
+                </span>
+              ) : null}
             </div>
           </div>
 

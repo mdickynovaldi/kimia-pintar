@@ -35,6 +35,8 @@ interface NavItem {
   Icon: Icon;
   /** Shortcut links never take the active highlight. */
   noActive?: boolean;
+  /** Skip prefetch (e.g. redirect-resolving route handlers). */
+  noPrefetch?: boolean;
   /** Renders a form button invoking the logout server action instead of a link. */
   action?: "logout";
 }
@@ -57,10 +59,12 @@ const STUDENT_NAV: NavGroup[] = [
     label: "Pintasan",
     items: [
       {
-        href: "/courses/kimia-dasar/termokimia",
+        // Resolved server-side to the student's actual next meeting.
+        href: "/me/continue",
         label: "Lanjut belajar",
         Icon: Clock,
         noActive: true,
+        noPrefetch: true,
       },
     ],
   },
@@ -77,6 +81,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/courses", label: "Mata Kuliah", Icon: Book },
       { href: "/admin/students", label: "Siswa", Icon: Users },
       { href: "/admin/enrollments", label: "Pendaftaran", Icon: ClipboardCheck },
+      { href: "/admin/grading", label: "Penilaian", Icon: EyePreview },
       { href: "/admin/gradebook", label: "Buku Nilai", Icon: Chart },
       { href: "/admin/settings", label: "Pengaturan", Icon: Settings },
     ],
@@ -157,6 +162,7 @@ export function AppShell({
         href={item.href}
         className={`nav-item${isActive(item) ? " active" : ""}`}
         onClick={close}
+        prefetch={item.noPrefetch ? false : undefined}
       >
         <Icon />
         {item.label}

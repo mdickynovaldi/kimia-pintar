@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { saveMeeting } from "@/app/actions/admin";
+import { createQuiz } from "@/app/actions/admin-quiz";
 import { uploadAttachment } from "@/app/actions/upload";
 import { Check } from "@/components/icons";
 import type { Meeting } from "@/lib/data/types";
@@ -216,7 +217,14 @@ export function MeetingEditor({
             <Link className="btn btn-primary" href={`/admin/quizzes/${meeting.quizId}`}>
               Buka pembuat kuis
             </Link>
-          ) : null}
+          ) : (
+            <form action={createQuiz}>
+              <input type="hidden" name="meeting_id" value={meeting.id} />
+              <button className="btn btn-primary" type="submit">
+                + Buat kuis
+              </button>
+            </form>
+          )}
         </div>
       </div>
 

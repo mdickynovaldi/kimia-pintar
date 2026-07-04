@@ -17,6 +17,8 @@ interface ProfileTabsProps {
   studentNo: string;
   initials: string;
   avatarUrl?: string | null;
+  role?: "admin" | "student";
+  isActive?: boolean;
 }
 
 function Notice({ state }: { state: ProfileState }) {
@@ -42,6 +44,8 @@ export function ProfileTabs({
   studentNo,
   initials,
   avatarUrl: initialAvatar,
+  role = "student",
+  isActive = true,
 }: ProfileTabsProps) {
   const avatarRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>(initialAvatar ?? "");
@@ -95,8 +99,14 @@ export function ProfileTabs({
       </div>
 
       <div className="row gap-sm" style={{ margin: "14px 0 22px" }}>
-        <span className="badge accent"><span className="dot" />Peran: Siswa</span>
-        <span className="badge ok"><span className="dot" />Status: Aktif</span>
+        <span className="badge accent">
+          <span className="dot" />
+          Peran: {role === "admin" ? "Admin" : "Siswa"}
+        </span>
+        <span className={isActive ? "badge ok" : "badge warn"}>
+          <span className="dot" />
+          Status: {isActive ? "Aktif" : "Nonaktif"}
+        </span>
       </div>
 
       <hr className="divider" />

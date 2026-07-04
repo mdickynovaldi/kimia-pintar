@@ -11,7 +11,11 @@ import { PasswordField } from "@/components/ui/password-field";
  * when configured; demo redirect in mock mode). Errors render inline.
  */
 export function LoginForm() {
-  const next = useSearchParams().get("next") ?? "";
+  const params = useSearchParams();
+  const next = params.get("next") ?? "";
+  const errorParam = params.get("error");
+  const linkError = errorParam === "link";
+  const inactiveError = errorParam === "inactive";
   const [state, formAction, pending] = useActionState<AuthState, FormData>(
     login,
     undefined,
@@ -78,6 +82,24 @@ export function LoginForm() {
             style={{ display: "flex", marginBottom: "14px", width: "100%" }}
           >
             {state.error}
+          </p>
+        ) : linkError ? (
+          <p
+            role="alert"
+            className="badge danger"
+            style={{ display: "flex", marginBottom: "14px", width: "100%" }}
+          >
+            Tautan email tidak valid atau sudah kedaluwarsa. Minta tautan baru
+            lewat &quot;Lupa sandi?&quot;.
+          </p>
+        ) : inactiveError ? (
+          <p
+            role="alert"
+            className="badge danger"
+            style={{ display: "flex", marginBottom: "14px", width: "100%" }}
+          >
+            Akun kamu belum aktif — menunggu persetujuan admin atau telah
+            dinonaktifkan.
           </p>
         ) : null}
 

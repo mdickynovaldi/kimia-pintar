@@ -1,14 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getAttempt, getQuiz } from "@/lib/data";
+import {
+  getAttempt,
+  getAttemptState,
+  getAttemptStats,
+  getCourse,
+  getMeeting,
+  getQuiz,
+} from "@/lib/data";
 import type { GradingMethod } from "@/lib/data";
+
+export const metadata: Metadata = { title: "Hasil Kuis" };
 
 const GRADING_METHOD_LABELS: Record<GradingMethod, string> = {
   highest: "tertinggi",
   latest: "terakhir",
   average: "rata-rata",
   first: "pertama",
+};
+
+const POLICY_NOTES: Record<string, string> = {
+  after_submit: "jawaban benar ditampilkan setelah submit",
+  after_close: "jawaban benar ditampilkan setelah kuis ditutup",
+  never: "kunci jawaban tidak ditampilkan untuk kuis ini",
 };
 
 const pageStyles = `
@@ -35,9 +51,10 @@ const pageStyles = `
   .rev .mark svg { width: 15px; height: 15px; }
   .rev .mark.ok { background: var(--success); }
   .rev .mark.no { background: var(--danger); }
+  .rev .mark.pend { background: var(--warn); }
   .ans-row { display: flex; gap: 8px; font-size: 13.5px; padding: 6px 0; align-items: baseline; }
   .ans-row .lbl { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--faint); width: 96px; flex: none; }
-  .ans-row .val { color: var(--fg); }
+  .ans-row .val { color: var(--fg); white-space: pre-wrap; }
   .ans-row .val.wrong { color: var(--danger); }
   .ans-row .val.right { color: var(--success); font-weight: 600; }
   .explain { margin-top: 10px; padding: 11px 13px; border-radius: var(--r-sm); background: var(--surface-2); font-size: 13px; color: var(--muted); }
@@ -57,13 +74,36 @@ export default async function QuizResultPage({
   params: Promise<{ quizId: string; attemptId: string }>;
 }) {
   const { quizId, attemptId } = await params;
-  const [attempt, quiz] = await Promise.all([
+  const [initialAttempt, quiz] = await Promise.all([
     getAttempt(attemptId),
     getQuiz(quizId),
   ]);
+  let attempt = initialAttempt;
   if (!attempt || !quiz) notFound();
+
+  // An attempt that is still open has no result yet.
+  if (attempt.status === "in_progress") {
+    const state = await getAttemptState(attemptId);
+    const expired =
+      !!state?.deadlineAt && new Date(state.deadlineAt) < new Date();
+    if (!expired) redirect(`/quiz/${quizId}/attempt/${attemptId}`);
+    // Timer ran out: finalize (grades what was saved) then re-read.
+    await getAttemptStats(quizId);
+    attempt = await getAttempt(attemptId);
+    if (!attempt) notFound();
+  }
+
+  const [{ max: maxAttempts }, course, meeting] = await Promise.all([
+    getAttemptStats(quizId),
+    getCourse(quiz.courseSlug),
+    getMeeting(quiz.courseSlug, quiz.meetingSlug),
+  ]);
+
+  const pending = attempt.status === "awaiting_manual_grade";
   const pct = attempt.percentage ?? 0;
   const gradingLabel = GRADING_METHOD_LABELS[quiz.gradingMethod];
+  const policyNote =
+    POLICY_NOTES[quiz.showCorrectAnswers] ?? POLICY_NOTES.after_submit;
 
   return (
     <AppShell
@@ -71,7 +111,8 @@ export default async function QuizResultPage({
       contentClassName="narrow"
       crumb={
         <>
-          Kimia Dasar / Pertemuan 4 / <b>Hasil</b>
+          {course?.title ?? "Kursus"} / {meeting?.label ?? "Pertemuan"} /{" "}
+          <b>Hasil</b>
         </>
       }
     >
@@ -83,18 +124,23 @@ export default async function QuizResultPage({
           className="score-ring"
           aria-hidden="true"
           style={{
-            background: `radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(var(--accent) 0 ${pct}%, var(--surface-3) ${pct}%)`,
+            background: `radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(var(--accent) 0 ${pending ? 0 : pct}%, var(--surface-3) ${pending ? 0 : pct}%)`,
           }}
         >
           <div>
-            <div className="big">{attempt.score}</div>
-            <div className="max">/ {attempt.maxScore}</div>
+            <div className="big">{pending ? "…" : attempt.score}</div>
+            <div className="max">/ {attempt.maxScore ?? "—"}</div>
           </div>
         </div>
         <div>
           <div className="row gap-sm" style={{ marginBottom: "6px" }}>
             <span className="eyebrow">{quiz.title}</span>
-            {attempt.passed ? (
+            {pending ? (
+              <span className="badge warn">
+                <span className="dot" />
+                Menunggu penilaian
+              </span>
+            ) : attempt.passed ? (
               <span className="badge ok">
                 <span className="dot" />
                 Lulus
@@ -107,17 +153,23 @@ export default async function QuizResultPage({
             )}
           </div>
           <h1 style={{ marginBottom: "2px" }}>
-            {attempt.passed ? "Kerja bagus!" : "Belum lulus, coba lagi"}
+            {pending
+              ? "Jawaban terkirim!"
+              : attempt.passed
+                ? "Kerja bagus!"
+                : "Belum lulus, coba lagi"}
           </h1>
           <p className="muted" style={{ fontSize: "13.5px" }}>
-            {attempt.passed
-              ? `Nilai kamu melampaui ambang lulus ${quiz.passingScore}%.`
-              : `Nilai kamu di bawah ambang lulus ${quiz.passingScore}%.`}
+            {pending
+              ? "Sebagian jawaban (esai) dinilai manual oleh pengajar. Nilai akhir muncul setelah penilaian selesai."
+              : attempt.passed
+                ? `Nilai kamu melampaui ambang lulus ${quiz.passingScore}%.`
+                : `Nilai kamu di bawah ambang lulus ${quiz.passingScore}%.`}
           </p>
           <div className="metrics">
             <div className="m">
               <div className="mk">Persentase</div>
-              <div className="mv mono">{pct}%</div>
+              <div className="mv mono">{pending ? "—" : `${pct}%`}</div>
             </div>
             <div className="m">
               <div className="mk">Jawaban benar</div>
@@ -131,7 +183,9 @@ export default async function QuizResultPage({
             </div>
             <div className="m">
               <div className="mk">Percobaan</div>
-              <div className="mv">{attempt.attemptNumber} dari 1</div>
+              <div className="mv">
+                {attempt.attemptNumber} dari {maxAttempts ?? "∞"}
+              </div>
             </div>
           </div>
           <div className="note-line">
@@ -147,12 +201,17 @@ export default async function QuizResultPage({
               <path d="M12 11v5M12 8h.01" />
             </svg>
             <span>
-              Kebijakan jawaban: jawaban benar ditampilkan setelah submit (
-              <i>after_submit</i>). Nilai tercatat:{" "}
-              <b style={{ color: "var(--fg)" }}>
-                {attempt.score} ({gradingLabel})
-              </b>
-              .
+              Kebijakan jawaban: {policyNote} (<i>{quiz.showCorrectAnswers}</i>
+              ).{" "}
+              {pending ? null : (
+                <>
+                  Nilai tercatat:{" "}
+                  <b style={{ color: "var(--fg)" }}>
+                    {attempt.score} ({gradingLabel})
+                  </b>
+                  .
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -176,7 +235,21 @@ export default async function QuizResultPage({
               ) : (
                 <span className="rprompt">{r.prompt}</span>
               )}
-              {r.isCorrect ? (
+              {r.pending ? (
+                <span className="mark pend" title="Menunggu penilaian">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
+                </span>
+              ) : r.isCorrect ? (
                 <span className="mark ok" title="Benar">
                   <svg
                     viewBox="0 0 24 24"
@@ -206,16 +279,25 @@ export default async function QuizResultPage({
             </div>
             <div className="ans-row">
               <span className="lbl">Jawabanmu</span>
-              <span className={`val ${r.isCorrect ? "right" : "wrong"}`}>
+              <span
+                className={`val ${r.pending ? "" : r.isCorrect ? "right" : "wrong"}`}
+              >
                 {r.given}
               </span>
             </div>
-            <div className="ans-row">
-              <span className="lbl">Kunci</span>
-              <span className={`val${r.isCorrect ? "" : " right"}`}>
-                {r.correct}
-              </span>
-            </div>
+            {r.pending ? (
+              <div className="ans-row">
+                <span className="lbl">Status</span>
+                <span className="val">Menunggu penilaian pengajar</span>
+              </div>
+            ) : (
+              <div className="ans-row">
+                <span className="lbl">Kunci</span>
+                <span className={`val${r.isCorrect ? "" : " right"}`}>
+                  {r.correct}
+                </span>
+              </div>
+            )}
             {r.explanation ? (
               <div className="explain">
                 <b>Pembahasan:</b> {r.explanation}

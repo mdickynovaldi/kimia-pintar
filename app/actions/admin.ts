@@ -45,8 +45,19 @@ export async function createCourse(fd: FormData): Promise<void> {
   await requireAdmin();
   const title = str(fd, "title") || "Mata Kuliah Baru";
   const supabase = await createClient();
-  const slug = slugify(title) || `kursus-${Date.now()}`;
+
+  // slug/code are UNIQUE — de-dup against existing rows so "Kimia Dasar (2)"
+  // style repeat titles don't blow up with a unique-violation.
+  const base = slugify(title) || `kursus-${Date.now()}`;
+  const { data: taken } = await supabase
+    .from("courses")
+    .select("slug")
+    .like("slug", `${base}%`);
+  const takenSet = new Set((taken ?? []).map((r) => r.slug as string));
+  let slug = base;
+  for (let n = 2; takenSet.has(slug); n++) slug = `${base}-${n}`;
   const code = (str(fd, "code") || slug).toUpperCase();
+
   const { data, error } = await supabase
     .from("courses")
     .insert({
@@ -59,7 +70,10 @@ export async function createCourse(fd: FormData): Promise<void> {
     })
     .select("id")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Surface on the courses page instead of an unhandled crash.
+    redirect(`/admin/courses?error=${encodeURIComponent(error.message)}`);
+  }
   revalidatePath("/admin/courses");
   redirect(`/admin/courses/${data.id}`);
 }
@@ -77,6 +91,8 @@ export async function updateCourse(fd: FormData): Promise<void> {
   };
   if (str(fd, "code")) patch.code = str(fd, "code").toUpperCase();
   if (fd.has("cover_image_url")) patch.cover_image_url = str(fd, "cover_image_url") || null;
+  if (fd.has("instructor")) patch.instructor = str(fd, "instructor") || "Pengajar";
+  if (fd.has("objectives")) patch.objectives = str(fd, "objectives") || null;
   const { error } = await supabase.from("courses").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${id}`);
@@ -179,7 +195,11 @@ export async function toggleMeetingPublish(fd: FormData): Promise<void> {
   const next = str(fd, "is_published") === "true";
   if (!id) return;
   const supabase = await createClient();
-  await supabase.from("meetings").update({ is_published: next }).eq("id", id);
+  const { error } = await supabase
+    .from("meetings")
+    .update({ is_published: next })
+    .eq("id", id);
+  if (error) throw new Error(error.message); // surfaced by app/error.tsx
   if (courseId) revalidatePath(`/admin/courses/${courseId}`);
 }
 
@@ -323,16 +343,18 @@ export async function saveEnrollments(fd: FormData): Promise<void> {
   const toRemove = [...currentIds].filter((id) => !nextIds.has(id));
 
   if (toAdd.length) {
-    await supabase.from("enrollments").insert(
+    const { error } = await supabase.from("enrollments").insert(
       toAdd.map((student_id) => ({ course_id: courseId, student_id, status: "active" })),
     );
+    if (error) throw new Error(error.message); // surfaced by app/error.tsx
   }
   if (toRemove.length) {
-    await supabase
+    const { error } = await supabase
       .from("enrollments")
       .delete()
       .eq("course_id", courseId)
       .in("student_id", toRemove);
+    if (error) throw new Error(error.message);
   }
   revalidatePath("/admin/enrollments");
 }

@@ -101,7 +101,19 @@ function MeetingRow({
           Kuis
         </Link>
       ) : null}
-      <form action={deleteMeeting}>
+      <form
+        action={deleteMeeting}
+        onSubmit={(e) => {
+          // Cascade wipes materials, video, quiz, and every student attempt.
+          if (
+            !window.confirm(
+              `Hapus "${m.title}"? Semua materi, video, kuis, dan nilai siswa pada pertemuan ini ikut terhapus permanen.`,
+            )
+          ) {
+            e.preventDefault();
+          }
+        }}
+      >
         <input type="hidden" name="id" value={m.id} />
         <input type="hidden" name="course_id" value={courseId} />
         <button
@@ -131,7 +143,18 @@ export function CourseEditor({
   const [color, setColor] = useState(course.color);
   const [coverUrl, setCoverUrl] = useState<string>(course.coverImageUrl ?? "");
   const [isPublished, setPublished] = useState(course.isPublished);
+  const [instructor, setInstructor] = useState(course.instructor);
+  const [objectives, setObjectives] = useState(course.objectives.join("\n"));
   const [meetings, setMeetings] = useState(initialMeetings);
+
+  // Server actions (tambah/hapus/terbitkan) revalidate and stream fresh props —
+  // re-sync during render (the sanctioned "state adjusts to props" pattern) so
+  // the on-screen list reflects them without a manual reload.
+  const [syncedFrom, setSyncedFrom] = useState(initialMeetings);
+  if (syncedFrom !== initialMeetings) {
+    setSyncedFrom(initialMeetings);
+    setMeetings(initialMeetings);
+  }
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -176,6 +199,8 @@ export function CourseEditor({
     fd.set("description", description);
     fd.set("color", color);
     fd.set("cover_image_url", coverUrl);
+    fd.set("instructor", instructor);
+    fd.set("objectives", objectives);
     if (isPublished) fd.set("is_published", "true");
     try {
       await updateCourse(fd);
@@ -206,6 +231,21 @@ export function CourseEditor({
         <div className="field">
           <label>Deskripsi</label>
           <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Pengajar</label>
+          <input className="input" value={instructor} onChange={(e) => setInstructor(e.target.value)} placeholder="Nama pengajar" />
+        </div>
+        <div className="field">
+          <label>Capaian pembelajaran</label>
+          <textarea
+            className="textarea"
+            value={objectives}
+            onChange={(e) => setObjectives(e.target.value)}
+            placeholder={"Satu capaian per baris…"}
+            style={{ minHeight: "96px" }}
+          />
+          <span className="hint">satu poin per baris — tampil di tab Ikhtisar siswa</span>
         </div>
 
         <div className="field">

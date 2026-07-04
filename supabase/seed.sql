@@ -49,9 +49,10 @@ with mtg as (
   join courses c on c.id = m.course_id
   where c.slug = 'kimia-dasar' and m.slug = 'termokimia'
 )
+-- drive_file_id sengaja NULL: admin mengisi tautan video asli lewat editor
+-- pertemuan (placeholder palsu akan tampil sebagai iframe Drive yang rusak).
 insert into videos (meeting_id, title, provider, drive_file_id, source_url)
-select mtg.id, 'Video pembelajaran — Termokimia', 'google_drive', 'CONTOH_ID',
-  'https://drive.google.com/file/d/CONTOH_ID/preview'
+select mtg.id, 'Video pembelajaran — Termokimia', 'google_drive', null, ''
 from mtg;
 
 -- ---- Termokimia quiz -------------------------------------------------------

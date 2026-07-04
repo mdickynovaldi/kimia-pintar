@@ -3,9 +3,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Tabs } from "@/components/ui/tabs";
-import { getCourse, getMeetings, getMyResults } from "@/lib/data";
+import {
+  getCourse,
+  getMeetings,
+  getMyEnrolledCourseIds,
+  getMyResults,
+} from "@/lib/data";
 
-export const metadata: Metadata = { title: "Kimia Dasar" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ courseSlug: string }>;
+}): Promise<Metadata> {
+  const { courseSlug } = await params;
+  const course = await getCourse(courseSlug);
+  return { title: course?.title ?? "Mata Kuliah" };
+}
 
 const courseStyles = `
   .hero {
@@ -51,13 +64,15 @@ export default async function CoursePage({
   params: Promise<{ courseSlug: string }>;
 }) {
   const { courseSlug } = await params;
-  const [course, meetings, allResults] = await Promise.all([
+  const [course, meetings, allResults, enrolledIds] = await Promise.all([
     getCourse(courseSlug),
     getMeetings(courseSlug),
     getMyResults(),
+    getMyEnrolledCourseIds(),
   ]);
   if (!course) notFound();
   const results = allResults.filter((r) => r.courseTitle === course.title);
+  const isEnrolled = enrolledIds.has(course.id);
 
   const totalMeetings = meetings.length;
   const completedCount = meetings.filter((m) => m.state === "completed").length;
@@ -72,6 +87,7 @@ export default async function CoursePage({
     lulus: { className: "badge ok", label: "Lulus" },
     "belum-lulus": { className: "badge warn", label: "Belum lulus" },
     "belum-dikerjakan": { className: "badge", label: "Belum dikerjakan" },
+    "menunggu-penilaian": { className: "badge info", label: "Menunggu penilaian" },
   };
 
   const pertemuan = (
@@ -131,54 +147,58 @@ export default async function CoursePage({
     </div>
   );
 
+  const instructorInitials = course.instructor
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   const ikhtisar = (
     <div className="grid grid-2" style={{ alignItems: "start" }}>
       <div className="card card-pad">
         <h3 style={{ marginBottom: "10px" }}>Tentang mata kuliah</h3>
         <p className="muted" style={{ maxWidth: "62ch", marginBottom: "18px" }}>
-          Kimia Dasar membangun pemahaman fundamental tentang materi,
-          perubahannya, dan energi yang menyertainya. Setiap pertemuan
-          menggabungkan teori, contoh soal, dan latihan kuis untuk menguji
-          pemahaman.
+          {course.description ||
+            "Deskripsi mata kuliah belum ditambahkan oleh pengajar."}
         </p>
-        <h4 style={{ marginBottom: "10px" }}>Capaian pembelajaran</h4>
-        <ul
-          className="muted"
-          style={{
-            paddingLeft: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "7px",
-            maxWidth: "62ch",
-          }}
-        >
-          <li>Menghitung mol, massa molar, dan persamaan reaksi setara.</li>
-          <li>Menjelaskan konfigurasi elektron dan tabel periodik.</li>
-          <li>Membedakan ikatan ion, kovalen, dan logam.</li>
-          <li>Menerapkan konsep entalpi pada reaksi eksoterm dan endoterm.</li>
-          <li>
-            Menganalisis laju reaksi, kesetimbangan, serta reaksi asam-basa dan
-            redoks.
-          </li>
-        </ul>
+        {course.objectives.length > 0 ? (
+          <>
+            <h4 style={{ marginBottom: "10px" }}>Capaian pembelajaran</h4>
+            <ul
+              className="muted"
+              style={{
+                paddingLeft: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "7px",
+                maxWidth: "62ch",
+              }}
+            >
+              {course.objectives.map((o) => (
+                <li key={o}>{o}</li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </div>
       <div className="card card-pad">
         <h4 style={{ marginBottom: "14px" }}>Pengajar</h4>
         <div className="row gap-sm">
-          <div className="avatar lg">BM</div>
+          <div className="avatar lg">{instructorInitials}</div>
           <div>
             <div style={{ fontWeight: 700, color: "var(--fg-strong)" }}>
-              Bu Maya
+              {course.instructor}
             </div>
             <div className="muted" style={{ fontSize: "13px" }}>
-              Dosen Kimia · Kimia Pintar
+              Pengajar · Kimia Pintar
             </div>
           </div>
         </div>
         <hr className="divider" />
         <p className="muted" style={{ fontSize: "13.5px" }}>
-          Mengampu Kimia Dasar dengan fokus pada pendekatan konseptual dan
-          latihan terbimbing. Tersedia untuk tanya jawab setiap pertemuan.
+          Mengampu {course.title} dan tersedia untuk tanya jawab pada setiap
+          pertemuan.
         </p>
       </div>
     </div>
@@ -292,7 +312,7 @@ export default async function CoursePage({
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21a8 8 0 0 1 16 0" />
             </svg>
-            Bu Maya
+            {course.instructor}
           </span>
           <span className="hbadge">{totalMeetings} pertemuan</span>
           <span className="hbadge">{quizCount} kuis</span>
@@ -303,10 +323,12 @@ export default async function CoursePage({
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
-                background: "oklch(82% 0.13 158)",
+                background: isEnrolled
+                  ? "oklch(82% 0.13 158)"
+                  : "oklch(75% 0.12 65)",
               }}
             />
-            Terdaftar
+            {isEnrolled ? "Terdaftar" : "Belum terdaftar"}
           </span>
         </div>
       </section>

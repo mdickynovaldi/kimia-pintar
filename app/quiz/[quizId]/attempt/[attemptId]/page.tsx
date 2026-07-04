@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Check, Logout } from "@/components/icons";
-import { Countdown } from "@/components/quiz/countdown";
+import { notFound, redirect } from "next/navigation";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
-import { getQuiz, getSanitizedQuestions } from "@/lib/data";
+import { getAttemptState, getQuiz, getSanitizedQuestions } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Pengerjaan Kuis" };
 
@@ -90,57 +86,34 @@ export default async function QuizAttemptPage({
   const quiz = await getQuiz(quizId);
   if (!quiz) notFound();
 
-  // Player gets sanitized questions only (never the answer keys).
-  const questions = await getSanitizedQuestions(quizId);
+  // Attempt state: ownership (via RLS), status, server deadline, saved answers.
+  const state = await getAttemptState(attemptId);
+  if (!state) notFound();
 
-  // Server-authoritative deadline (live): the client computes remaining time
-  // from this absolute timestamp; otherwise fall back to the configured limit.
-  const fallbackSeconds = (quiz.timeLimitMinutes ?? 20) * 60;
-  let deadline: string | undefined;
-  if (isSupabaseConfigured) {
-    const supabase = await createClient();
-    const { data: att } = await supabase
-      .from("quiz_attempts")
-      .select("deadline_at")
-      .eq("id", attemptId)
-      .maybeSingle();
-    deadline = (att?.deadline_at as string | null) ?? undefined;
+  // Finalized (or timer-expired) attempts don't reopen the player.
+  const expired =
+    !!state.deadlineAt && new Date(state.deadlineAt) < new Date();
+  if (state.status !== "in_progress" || expired) {
+    redirect(`/quiz/${quizId}/result/${attemptId}`);
   }
 
-  const [small, big] = quiz.title.includes("—")
-    ? quiz.title.split("—").map((s) => s.trim())
-    : [quiz.title, quiz.title];
+  // Sanitized questions, shuffled per-attempt when the quiz asks for it.
+  const questions = await getSanitizedQuestions(quizId, attemptId);
 
   return (
     <div className="quiz-shell">
       <style>{quizStyles}</style>
-      <header className="quiz-bar">
-        <div className="qtitle">
-          {big}
-          <small>{small}</small>
-        </div>
-        <span className="spacer" />
-        <span className="save-ind">
-          <Check strokeWidth={2.4} />
-          <span>Tersimpan</span>
-        </span>
-        <Countdown seconds={fallbackSeconds} deadline={deadline} />
-        <Link
-          className="exit-link"
-          href={`/courses/${quiz.courseSlug}/${quiz.meetingSlug}`}
-        >
-          <Logout />
-          Keluar
-        </Link>
-      </header>
-
-      <main className="quiz-main">
-        <QuizPlayer
-          questions={questions}
-          resultHref={`/quiz/${quizId}/result/${attemptId}`}
-          attemptId={isSupabaseConfigured ? attemptId : undefined}
-        />
-      </main>
+      <QuizPlayer
+        questions={questions}
+        quizTitle={quiz.title}
+        resultHref={`/quiz/${quizId}/result/${attemptId}`}
+        exitHref={`/courses/${quiz.courseSlug}/${quiz.meetingSlug}`}
+        attemptId={isSupabaseConfigured ? attemptId : undefined}
+        deadline={state.deadlineAt ?? undefined}
+        initialAnswers={state.answers}
+        allowBacktrack={quiz.allowBacktrack}
+        questionsPerPage={quiz.questionsPerPage}
+      />
     </div>
   );
 }

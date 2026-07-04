@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getCourse, getEnrollments, getStudents } from "@/lib/data";
+import { getCourses, getEnrollments, getStudents } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth/dal";
 import { EnrollList } from "./enroll-list";
 
-export const metadata: Metadata = { title: "Pendaftaran · Admin Kimia Pintar" };
+export const metadata: Metadata = { title: "Pendaftaran · Admin" };
 
 const pageStyles = `
   .enroll-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
@@ -22,16 +21,37 @@ const pageStyles = `
   .scroll-list { max-height:480px; overflow-y:auto; }
 `;
 
-export default async function AdminEnrollmentsPage() {
+export default async function AdminEnrollmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ course?: string }>;
+}) {
   await requireAdmin();
+  const { course: courseParam } = await searchParams;
 
-  const course = await getCourse("kimia-dasar");
-  if (!course) notFound();
-
-  const [students, enrollments] = await Promise.all([
+  const [courses, students, enrollments] = await Promise.all([
+    getCourses(),
     getStudents(),
     getEnrollments(),
   ]);
+
+  // Any course can receive enrollments — no hardcoded slug. Default to the
+  // first published course, else the first course.
+  const course =
+    courses.find((c) => c.slug === courseParam) ??
+    courses.find((c) => c.isPublished) ??
+    courses[0];
+
+  if (!course) {
+    return (
+      <AppShell variant="admin" crumb={<b>Pendaftaran</b>}>
+        <div className="page-head">
+          <h1>Pendaftaran</h1>
+          <p>Belum ada mata kuliah — buat dulu di menu Mata Kuliah.</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   const enrolled = enrollments
     .filter((e) => e.courseId === course.id && e.status === "active")
@@ -50,14 +70,20 @@ export default async function AdminEnrollmentsPage() {
 
       <div className="page-head">
         <h1>Pendaftaran</h1>
-        <p>Daftarkan siswa ke mata kuliah.</p>
+        <p>
+          Daftarkan siswa ke mata kuliah. Siswa baru otomatis terdaftar ke
+          kursus terbit — kelola pengecualian di sini.
+        </p>
       </div>
 
       <EnrollList
+        key={course.id}
         students={studentRows}
         enrolled={enrolled}
         courseId={course.id}
         courseTitle={course.title}
+        courses={courses.map((c) => ({ slug: c.slug, title: c.title }))}
+        courseSlug={course.slug}
       />
     </AppShell>
   );

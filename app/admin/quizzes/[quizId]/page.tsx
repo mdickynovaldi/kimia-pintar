@@ -1,10 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { QuizBuilder } from "@/components/admin/quiz-builder";
 import { updateQuizSettings } from "@/app/actions/admin-quiz";
 import { requireAdmin } from "@/lib/auth/dal";
-import { getQuiz } from "@/lib/data";
+import { getCourseById, getQuiz } from "@/lib/data";
+
+export const metadata: Metadata = { title: "Pembuat Kuis · Admin" };
+
+/** ISO → datetime-local value in WIB (UTC+7), matching how saves are parsed. */
+function toWibLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+  return d.toISOString().slice(0, 16);
+}
 
 const pageStyles = `
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
@@ -51,6 +61,7 @@ export default async function AdminQuizBuilderPage({
   const { quizId } = await params;
   const quiz = await getQuiz(quizId);
   if (!quiz) notFound();
+  const course = await getCourseById(quiz.courseId);
 
   return (
     <AppShell
@@ -58,8 +69,10 @@ export default async function AdminQuizBuilderPage({
       crumb={
         <>
           <Link href="/admin/courses">Mata Kuliah</Link> /{" "}
-          <Link href={`/admin/courses/${quiz.courseId}`}>Kimia Dasar</Link> /{" "}
-          <b>{quiz.title}</b>
+          <Link href={`/admin/courses/${quiz.courseId}`}>
+            {course?.title ?? "Kursus"}
+          </Link>{" "}
+          / <b>{quiz.title}</b>
         </>
       }
     >
@@ -124,6 +137,16 @@ export default async function AdminQuizBuilderPage({
             <div className="field">
               <label htmlFor="s-qpp">Soal per halaman</label>
               <input className="input" id="s-qpp" name="questions_per_page" type="number" min={0} defaultValue={quiz.questionsPerPage} />
+            </div>
+            <div className="field">
+              <label htmlFor="s-from">Dibuka mulai (WIB)</label>
+              <input className="input" id="s-from" name="available_from" type="datetime-local" defaultValue={toWibLocal(quiz.availableFrom)} />
+              <span className="hint">kosongkan = langsung terbuka</span>
+            </div>
+            <div className="field">
+              <label htmlFor="s-until">Ditutup pada (WIB)</label>
+              <input className="input" id="s-until" name="available_until" type="datetime-local" defaultValue={toWibLocal(quiz.availableUntil)} />
+              <span className="hint">kosongkan = tanpa tenggat; juga dipakai kebijakan &quot;Setelah ditutup&quot;</span>
             </div>
           </div>
 

@@ -6,15 +6,29 @@ import { requireAdmin } from "@/lib/auth/dal";
 import { createCourse } from "@/app/actions/admin";
 import { CoursesTable } from "./courses-table";
 
-export const metadata: Metadata = { title: "Mata Kuliah · Admin Kimia Pintar" };
+export const metadata: Metadata = { title: "Mata Kuliah · Admin" };
 
-export default async function AdminCoursesPage() {
+export default async function AdminCoursesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   await requireAdmin();
+  const { error } = await searchParams;
   const courses = await getCourses();
   const total = courses.length;
 
   return (
     <AppShell variant="admin" crumb={<>Admin · <b>Mata Kuliah</b></>}>
+      {error ? (
+        <p
+          role="alert"
+          className="badge danger"
+          style={{ display: "flex", marginBottom: "14px", width: "100%" }}
+        >
+          Gagal membuat mata kuliah: {error}
+        </p>
+      ) : null}
       <div
         className="row between"
         style={{ marginBottom: "22px", flexWrap: "wrap", gap: "14px" }}

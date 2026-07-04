@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { saveEnrollments } from "@/app/actions/admin";
 
 type StudentRow = {
@@ -15,12 +16,17 @@ export function EnrollList({
   enrolled,
   courseId,
   courseTitle,
+  courses,
+  courseSlug,
 }: {
   students: StudentRow[];
   enrolled: string[];
   courseId: string;
   courseTitle: string;
+  courses: { slug: string; title: string }[];
+  courseSlug: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const enrolledSet = useMemo(() => new Set(enrolled), [enrolled]);
 
@@ -66,11 +72,15 @@ export function EnrollList({
       <div className="ctrlbar">
         <select
           className="select"
-          aria-label="Mata kuliah aktif"
-          value={courseTitle}
-          disabled
+          aria-label="Pilih mata kuliah"
+          value={courseSlug}
+          onChange={(e) => router.push(`/admin/enrollments?course=${e.target.value}`)}
         >
-          <option>{courseTitle}</option>
+          {courses.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.title}
+            </option>
+          ))}
         </select>
         <div className="input-group">
           <input
@@ -81,7 +91,7 @@ export function EnrollList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button type="button" className="trail" aria-label="Cari">
+          <span className="trail" aria-hidden="true">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -93,7 +103,7 @@ export function EnrollList({
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-          </button>
+          </span>
         </div>
         <button type="submit" className="btn btn-primary">
           <svg

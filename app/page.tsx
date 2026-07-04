@@ -561,11 +561,11 @@ export default function Page() {
               </li>
             </ul>
             <Link
-              href="/quiz/quiz-kd-04"
+              href="/register"
               className="btn btn-primary"
               style={{ marginTop: "26px" }}
             >
-              Coba alur kuis
+              Coba alur kuis — daftar gratis
             </Link>
           </div>
 

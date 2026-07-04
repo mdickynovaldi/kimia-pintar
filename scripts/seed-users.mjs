@@ -58,14 +58,19 @@ async function ensureUser({ email, password, full_name, student_no, role }) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name, role: role ?? "student", student_no: student_no ?? null },
+      user_metadata: { full_name, student_no: student_no ?? null },
+      // role lives in app_metadata — the only channel handle_new_user trusts.
+      app_metadata: { role: role ?? "student", invited: "true" },
     });
     if (error) throw error;
     user = data.user;
     console.log(`✓ created: ${email}`);
   }
-  // Ensure the profile reflects the intended role/name (in case the trigger ran
-  // before metadata, or the user pre-existed).
+  // Keep app_metadata.role authoritative for pre-existing users too, and mirror
+  // the intended role/name into the profile.
+  await supabase.auth.admin.updateUserById(user.id, {
+    app_metadata: { role: role ?? "student", invited: "true" },
+  });
   await supabase
     .from("profiles")
     .update({ full_name, role: role ?? "student", student_no: student_no ?? null })

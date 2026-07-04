@@ -90,6 +90,16 @@ export function QuizBuilder({
   const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
   const removeQuestion = (key: string) =>
     setQuestions((qs) => qs.filter((q) => q.key !== key));
+  /** Reorder: sort_order is assigned from array index on save. */
+  const moveQuestion = (key: string, dir: -1 | 1) =>
+    setQuestions((qs) => {
+      const i = qs.findIndex((q) => q.key === key);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= qs.length) return qs;
+      const next = qs.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
 
   const setType = (key: string, type: QuestionType) =>
     patch(key, (q) => {
@@ -219,6 +229,26 @@ export function QuizBuilder({
             <button
               type="button"
               className="icon-btn"
+              aria-label="Naikkan soal"
+              disabled={qi === 0}
+              style={qi === 0 ? { opacity: 0.35 } : undefined}
+              onClick={() => moveQuestion(q.key, -1)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Turunkan soal"
+              disabled={qi === questions.length - 1}
+              style={qi === questions.length - 1 ? { opacity: 0.35 } : undefined}
+              onClick={() => moveQuestion(q.key, 1)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
               aria-label="Hapus soal"
               onClick={() => removeQuestion(q.key)}
             >
@@ -287,11 +317,65 @@ export function QuizBuilder({
                 </button>
               ) : null}
             </div>
+            ) : q.type === "short_answer" || q.type === "fill_blank" ? (
+              <div style={{ marginTop: "12px" }}>
+                <p className="muted" style={{ fontSize: "13px", marginBottom: "8px" }}>
+                  Jawaban yang diterima (tidak peka kapital). Kosongkan daftar
+                  ini bila ingin menilai manual.
+                </p>
+                {q.options.map((o) => (
+                  <div className="opt-row correct" key={o.key}>
+                    <input
+                      className="opt-input"
+                      placeholder="Jawaban yang diterima…"
+                      value={o.content}
+                      onChange={(e) =>
+                        patch(q.key, (x) => ({
+                          ...x,
+                          options: x.options.map((oo) =>
+                            oo.key === o.key
+                              ? { ...oo, content: e.target.value }
+                              : oo,
+                          ),
+                        }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="del"
+                      aria-label="Hapus jawaban"
+                      onClick={() =>
+                        patch(q.key, (x) => ({
+                          ...x,
+                          options: x.options.filter((oo) => oo.key !== o.key),
+                        }))
+                      }
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() =>
+                    patch(q.key, (x) => ({
+                      ...x,
+                      options: [
+                        ...x.options,
+                        { key: uid(), content: "", isCorrect: true },
+                      ],
+                    }))
+                  }
+                  style={{ marginTop: "4px" }}
+                >
+                  <Plus /> Tambah jawaban diterima
+                </button>
+              </div>
             ) : (
               <p className="muted" style={{ fontSize: "13px", marginTop: "12px" }}>
-                {q.type === "essay"
-                  ? "Jawaban esai dinilai manual oleh admin."
-                  : "Tipe ini tidak memakai pilihan jawaban."}
+                Jawaban esai diketik siswa dan dinilai manual lewat menu
+                Penilaian.
               </p>
             )}
 

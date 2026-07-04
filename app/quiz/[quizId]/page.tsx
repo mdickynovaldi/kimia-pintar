@@ -125,7 +125,11 @@ export default async function QuizIntroPage({
             </span>
             <div>
               <div className="rk">Durasi</div>
-              <div className="rv">{quiz.timeLimitMinutes} menit</div>
+              <div className="rv">
+                {quiz.timeLimitMinutes != null
+                  ? `${quiz.timeLimitMinutes} menit`
+                  : "Tanpa batas waktu"}
+              </div>
             </div>
           </div>
           <div className="rule">

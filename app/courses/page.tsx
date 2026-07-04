@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
-import { getCourses } from "@/lib/data";
+import { getCourses, getMyEnrolledCourseIds } from "@/lib/data";
 import { Catalog } from "./catalog";
 
 export const metadata: Metadata = { title: "Mata Kuliah" };
@@ -16,7 +16,10 @@ const coursesStyles = `
 `;
 
 export default async function CoursesPage() {
-  const courses = await getCourses();
+  const [courses, enrolledIds] = await Promise.all([
+    getCourses(),
+    getMyEnrolledCourseIds(),
+  ]);
 
   return (
     <AppShell variant="student" crumb={<b>Mata Kuliah</b>}>
@@ -25,12 +28,12 @@ export default async function CoursesPage() {
       <div className="page-head">
         <h1>Mata Kuliah</h1>
         <p>
-          Jelajahi katalog mata kuliah kimia. Mulai dari Kimia Dasar yang sudah
-          aktif, kursus lainnya menyusul.
+          Jelajahi katalog mata kuliah kimia. Mulai dari yang sudah aktif,
+          kursus lainnya menyusul.
         </p>
       </div>
 
-      <Catalog courses={courses} />
+      <Catalog courses={courses} enrolledIds={[...enrolledIds]} />
     </AppShell>
   );
 }

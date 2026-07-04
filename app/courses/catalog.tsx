@@ -9,15 +9,26 @@ type Filter = "semua" | "terdaftar" | "segera-hadir";
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "semua", label: "Semua" },
   { id: "terdaftar", label: "Terdaftar" },
-  { id: "segera-hadir", label: "Segera hadir" },
+  { id: "segera-hadir", label: "Lainnya" },
 ];
 
-export function Catalog({ courses }: { courses: Course[] }) {
+/** `enrolledIds` comes from the student's REAL enrollments — a published
+ * course the student isn't enrolled in shows as "Belum terdaftar", not as an
+ * enrolled course. */
+export function Catalog({
+  courses,
+  enrolledIds,
+}: {
+  courses: Course[];
+  enrolledIds: string[];
+}) {
   const [filter, setFilter] = useState<Filter>("semua");
+  const enrolled = new Set(enrolledIds);
+  const isEnrolled = (c: Course) => c.isPublished && enrolled.has(c.id);
 
   const visible = courses.filter((c) => {
-    if (filter === "terdaftar") return c.isPublished;
-    if (filter === "segera-hadir") return !c.isPublished;
+    if (filter === "terdaftar") return isEnrolled(c);
+    if (filter === "segera-hadir") return !isEnrolled(c);
     return true;
   });
 
@@ -37,8 +48,13 @@ export function Catalog({ courses }: { courses: Course[] }) {
       </div>
 
       <div className="grid grid-3">
+        {visible.length === 0 ? (
+          <p className="muted" style={{ fontSize: "13.5px" }}>
+            Tidak ada mata kuliah pada filter ini.
+          </p>
+        ) : null}
         {visible.map((c) =>
-          c.isPublished ? (
+          isEnrolled(c) ? (
             <Link key={c.id} className="crs" href={`/courses/${c.slug}`}>
               <div className="cap" style={{ background: c.coverGradient }}>
                 {c.title}
@@ -69,7 +85,7 @@ export function Catalog({ courses }: { courses: Course[] }) {
               </div>
               <span className="badge warn" style={{ alignSelf: "flex-start" }}>
                 <span className="dot" />
-                Segera hadir
+                {c.isPublished ? "Hubungi admin" : "Segera hadir"}
               </span>
             </div>
           ),

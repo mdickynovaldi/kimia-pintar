@@ -40,6 +40,7 @@ export async function POST(
       question_id: body.questionId,
       selected_option_ids: body.selectedOptionIds ?? [],
       answer_text: body.answerText ?? null,
+      answered_at: new Date().toISOString(),
     },
     { onConflict: "attempt_id,question_id" },
   );

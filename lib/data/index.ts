@@ -19,6 +19,8 @@ import {
 import * as sb from "./supabase";
 import { DEFAULT_SETTINGS } from "./types";
 import type {
+  AdminDashboardData,
+  AttemptState,
   Course,
   GradebookRow,
   Meeting,
@@ -53,6 +55,29 @@ export async function getCurrentUser(): Promise<Profile> {
   if (!live) return currentStudent;
   const { getSessionUser } = await import("@/lib/auth/dal");
   return (await getSessionUser()) ?? currentStudent;
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboardData> {
+  if (live) return sb.getAdminDashboard();
+  const { recentActivity, meetingCompletion, totalStudents } = await import("./mock");
+  return {
+    totalStudents,
+    publishedCourses: 1,
+    totalCourses: mockCourses.length,
+    totalQuizzes: 4,
+    attemptsThisWeek: 128,
+    averageScore: 81,
+    pendingGrading: 0,
+    recentAttempts: [
+      { studentName: "Emmil Saputra", quizLabel: "P3 — Ikatan Kimia", score: 90, timeAgo: "12 mnt" },
+      { studentName: "Dian Pratama", quizLabel: "P2 — Struktur Atom", score: 78, timeAgo: "5 jam" },
+      { studentName: "Rara Fitri", quizLabel: "P1 — Stoikiometri", score: 68, timeAgo: "6 jam" },
+      { studentName: "Budi Santoso", quizLabel: "P3 — Ikatan Kimia", score: 85, timeAgo: "1 hari" },
+      { studentName: "Nadia Putri", quizLabel: "P4 — Termokimia", score: 92, timeAgo: "1 hari" },
+    ],
+    recentActivity,
+    meetingCompletion,
+  };
 }
 
 export async function getCourses(): Promise<Course[]> {
@@ -117,8 +142,9 @@ export async function getQuiz(quizId: string): Promise<Quiz | undefined> {
 /** Sanitized questions for the student quiz player (no answer keys). */
 export async function getSanitizedQuestions(
   quizId: string,
+  seed?: string,
 ): Promise<Question[]> {
-  if (live) return sb.getSanitizedQuestions(quizId);
+  if (live) return sb.getSanitizedQuestions(quizId, seed);
   const q = await getQuiz(quizId);
   return q ? stripKeys(q) : [];
 }
@@ -128,6 +154,20 @@ export async function getAttempt(
 ): Promise<QuizAttempt | null> {
   if (live) return sb.getAttempt(attemptId);
   return { ...sampleAttempt, id: attemptId };
+}
+
+/** Open-attempt state (status, deadline, saved answers) for the player. */
+export async function getAttemptState(
+  attemptId: string,
+): Promise<AttemptState | null> {
+  if (live) return sb.getAttemptState(attemptId);
+  return {
+    id: attemptId,
+    quizId: termokimiaQuiz.id,
+    status: "in_progress",
+    deadlineAt: null,
+    answers: {},
+  };
 }
 
 export async function getStudents(): Promise<Profile[]> {
@@ -148,6 +188,36 @@ export async function getGradebook(): Promise<GradebookRow[]> {
 export async function getMyResults(): Promise<ResultRow[]> {
   if (live) return sb.getMyResults();
   return mockResults;
+}
+
+/** Course ids the current student is actively enrolled in. */
+export async function getMyEnrolledCourseIds(): Promise<Set<string>> {
+  if (live) return sb.getMyEnrolledCourseIds();
+  return new Set(mockCourses.filter((c) => c.isPublished).map((c) => c.id));
+}
+
+/** Upcoming quiz deadlines for the dashboard (real available_until only). */
+export async function getUpcomingDeadlines() {
+  if (live) return sb.getUpcomingDeadlines();
+  return [];
+}
+
+/** Recently-published meetings, rendered as dashboard announcements. */
+export async function getRecentAnnouncements() {
+  if (live) return sb.getRecentAnnouncements();
+  return [];
+}
+
+/** Admin: attempts waiting for manual (essay) grading. */
+export async function getGradingQueue() {
+  if (live) return sb.getGradingQueue();
+  return [];
+}
+
+/** Admin: one attempt's answers for the manual-grading screen. */
+export async function getGradingDetail(attemptId: string) {
+  if (live) return sb.getGradingDetail(attemptId);
+  return null;
 }
 
 export async function getSettings(): Promise<PlatformSettings> {

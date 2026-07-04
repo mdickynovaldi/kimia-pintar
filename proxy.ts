@@ -13,6 +13,7 @@ const PUBLIC_PATHS = new Set([
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/auth/confirm", // email-link callback: must be reachable logged-out
 ]);
 
 const AUTH_PATHS = new Set(["/login", "/register"]);

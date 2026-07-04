@@ -58,6 +58,8 @@ export interface Course {
   meetingCount: number;
   quizCount: number;
   instructor: string;
+  /** Learning objectives, one per line (rendered as the Ikhtisar bullets). */
+  objectives: string[];
 }
 
 export interface Material {
@@ -135,6 +137,9 @@ export interface Quiz {
   showScoreImmediately: boolean;
   questionsPerPage: number;
   allowBacktrack: boolean;
+  /** Availability window (ISO); null = always open on that side. */
+  availableFrom: string | null;
+  availableUntil: string | null;
   isPublished: boolean;
   questions: Question[];
 }
@@ -154,9 +159,20 @@ export interface AttemptAnswerReview {
   /** Human-readable rendering of the correct answer. */
   correct: string;
   isCorrect: boolean;
+  /** Waiting for manual grading (essay / unconfigured short answer). */
+  pending?: boolean;
   promptHtml?: string;
   prompt: string;
   explanation?: string;
+}
+
+/** Saved answers of an open attempt, for restoring the player after reload. */
+export interface AttemptState {
+  id: string;
+  quizId: string;
+  status: AttemptStatus;
+  deadlineAt: string | null;
+  answers: Record<string, { optionIds: string[]; text: string | null }>;
 }
 
 export interface QuizAttempt {
@@ -177,15 +193,22 @@ export interface QuizAttempt {
   review: AttemptAnswerReview[];
 }
 
-/** A row in the student's own results view. */
+/** A row in the student's own results view — one row PER QUIZ, with the
+ * recorded score picked by the quiz's grading_method. */
 export interface ResultRow {
   courseTitle: string;
   meetingLabel: string;
   meetingTitle: string;
   quizId: string;
+  /** Attempt backing the recorded score (for the review link). */
   attemptId: string | null;
   score: number | null;
-  status: "lulus" | "belum-lulus" | "belum-dikerjakan";
+  status: "lulus" | "belum-lulus" | "belum-dikerjakan" | "menunggu-penilaian";
+  /** ISO timestamp of the recorded attempt's submission. */
+  date: string | null;
+  attemptsUsed: number;
+  maxAttempts: number | null;
+  passingScore: number;
 }
 
 /** A row in the admin gradebook (per student × quiz). */
@@ -202,6 +225,77 @@ export interface ActivityItem {
   text: string;
   meta: string;
   time: string;
+}
+
+/** A recently-submitted quiz attempt shown on the admin dashboard. */
+export interface RecentAttemptRow {
+  studentName: string;
+  quizLabel: string; // e.g. "P3 — Ikatan Kimia"
+  score: number;
+  timeAgo: string; // e.g. "12 mnt"
+}
+
+/** Attempt waiting for manual (essay) grading — admin grading queue row. */
+export interface GradingQueueItem {
+  attemptId: string;
+  studentName: string;
+  quizTitle: string;
+  meetingLabel: string;
+  submittedAt: string | null;
+}
+
+/** One answer inside the admin grading detail view. */
+export interface GradingAnswer {
+  questionId: string;
+  prompt: string;
+  type: QuestionType;
+  points: number;
+  /** Student answer, human-readable (text or joined option contents). */
+  given: string;
+  pointsAwarded: number | null;
+  feedback: string | null;
+  /** True when this row needs a human score (essay / unconfigured manual). */
+  needsManual: boolean;
+}
+
+export interface GradingDetail {
+  attemptId: string;
+  studentName: string;
+  quizTitle: string;
+  submittedAt: string | null;
+  passingScore: number;
+  answers: GradingAnswer[];
+}
+
+/** An upcoming quiz deadline for the student dashboard. */
+export interface UpcomingDeadline {
+  quizId: string;
+  quizTitle: string;
+  meetingLabel: string;
+  availableUntil: string; // ISO
+  timeLimitMinutes: number | null;
+  maxAttempts: number | null;
+}
+
+/** A recently-published meeting, shown as an announcement. */
+export interface AnnouncementItem {
+  title: string;
+  meta: string;
+  publishedAt: string; // ISO
+}
+
+/** Aggregates behind the admin dashboard tiles/panels. */
+export interface AdminDashboardData {
+  totalStudents: number;
+  publishedCourses: number;
+  totalCourses: number;
+  totalQuizzes: number;
+  attemptsThisWeek: number;
+  averageScore: number | null;
+  pendingGrading: number;
+  recentAttempts: RecentAttemptRow[];
+  recentActivity: ActivityItem[];
+  meetingCompletion: { label: string; pct: number }[];
 }
 
 export interface PlatformSettings {

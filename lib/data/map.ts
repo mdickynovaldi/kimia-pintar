@@ -77,7 +77,11 @@ export function rowToCourse(
     isPublished: (row.is_published as boolean) ?? false,
     meetingCount,
     quizCount,
-    instructor: "Bu Maya",
+    instructor: (row.instructor as string) ?? "Pengajar",
+    objectives: ((row.objectives as string | null) ?? "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean),
   };
 }
 
@@ -133,6 +137,17 @@ export function meetingState(
   return order === 1 || completedOrders.has(order - 1) ? "available" : "locked";
 }
 
+/** Estimate reading time from the materials' HTML bodies (~180 wpm).
+ * Returns 0 when there is no body text to base it on (UI hides the badge). */
+function estimateReadingMinutes(materials: Material[]): number {
+  const words = materials.reduce((n, m) => {
+    const text = (m.bodyHtml ?? "").replace(/<[^>]+>/g, " ");
+    return n + text.split(/\s+/).filter(Boolean).length;
+  }, 0);
+  if (words === 0) return 0;
+  return Math.max(3, Math.round(words / 180));
+}
+
 export function rowToMeeting(
   row: Record<string, unknown>,
   opts: {
@@ -155,7 +170,7 @@ export function rowToMeeting(
     description: (row.description as string) ?? "",
     isPublished: (row.is_published as boolean) ?? false,
     state: opts.state,
-    readingMinutes: 25,
+    readingMinutes: estimateReadingMinutes(opts.materials ?? []),
     materials: opts.materials ?? [],
     videos: opts.videos ?? [],
     quizId: opts.quizId ?? null,
@@ -205,6 +220,8 @@ export function rowToQuiz(
     showScoreImmediately: (row.show_score_immediately as boolean) ?? true,
     questionsPerPage: (row.questions_per_page as number) ?? 1,
     allowBacktrack: (row.allow_backtrack as boolean) ?? true,
+    availableFrom: (row.available_from as string | null) ?? null,
+    availableUntil: (row.available_until as string | null) ?? null,
     isPublished: (row.is_published as boolean) ?? false,
     questions: opts.questions ?? [],
   };

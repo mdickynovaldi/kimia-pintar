@@ -82,7 +82,7 @@ export function GradebookTable({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="trail" aria-label="Cari" type="button">
+          <span className="trail" aria-hidden="true">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -94,7 +94,7 @@ export function GradebookTable({
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-          </button>
+          </span>
         </div>
       </div>
 

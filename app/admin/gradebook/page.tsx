@@ -4,7 +4,7 @@ import { getGradebook } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth/dal";
 import { GradebookTable } from "./gradebook-table";
 
-export const metadata: Metadata = { title: "Buku Nilai · Admin Kimia Pintar" };
+export const metadata: Metadata = { title: "Buku Nilai · Admin" };
 
 const pageStyles = `
   .filterbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }

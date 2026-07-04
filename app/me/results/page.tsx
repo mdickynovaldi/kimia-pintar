@@ -1,37 +1,15 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { getMyResults } from "@/lib/data";
-import { ResultsTable, type ResultTableRow } from "./results-table";
+import { ResultsTable } from "./results-table";
 
 export const metadata: Metadata = { title: "Nilai Saya" };
 
-// Per-row presentational literals reproduced from the source prototype
-// (the data layer does not carry the date / attempt-count columns). Keyed by
-// meetingLabel so the table stays wired to studentResults for the rest.
-const rowMeta: Record<string, { date: string; attempts: string; order: number }> = {
-  "Pertemuan 3": { date: "22 Jun 2026", attempts: "1/1", order: 0 },
-  "Pertemuan 2": { date: "15 Jun 2026", attempts: "1/1", order: 1 },
-  "Pertemuan 4": { date: "24 Jun 2026", attempts: "1/1", order: 2 },
-  "Pertemuan 1": { date: "08 Jun 2026", attempts: "2/2", order: 3 },
-};
-
 export default async function ResultsPage() {
-  const studentResults = await getMyResults();
-  const rows: ResultTableRow[] = studentResults
-    .slice()
-    .sort(
-      (a, b) =>
-        (rowMeta[a.meetingLabel]?.order ?? 99) -
-        (rowMeta[b.meetingLabel]?.order ?? 99),
-    )
-    .map((r) => ({
-      ...r,
-      date: rowMeta[r.meetingLabel]?.date,
-      attempts: rowMeta[r.meetingLabel]?.attempts,
-    }));
+  const rows = await getMyResults();
 
-  const scored = rows.filter((r): r is ResultTableRow & { score: number } =>
-    r.score !== null,
+  const scored = rows.filter(
+    (r): r is (typeof rows)[number] & { score: number } => r.score !== null,
   );
   const average =
     scored.length > 0
@@ -39,6 +17,19 @@ export default async function ResultsPage() {
       : 0;
   const passed = rows.filter((r) => r.status === "lulus").length;
   const total = rows.length;
+  const totalAttempts = rows.reduce((n, r) => n + r.attemptsUsed, 0);
+  const awaiting = rows.filter((r) => r.status === "menunggu-penilaian").length;
+
+  // Passing thresholds are per-quiz; show the range honestly.
+  const thresholds = [...new Set(rows.map((r) => r.passingScore))].sort(
+    (a, b) => a - b,
+  );
+  const thresholdLabel =
+    thresholds.length === 0
+      ? "—"
+      : thresholds.length === 1
+        ? `${thresholds[0]}`
+        : `${thresholds[0]}–${thresholds[thresholds.length - 1]}`;
 
   return (
     <AppShell variant="student" crumb={<b>Nilai Saya</b>}>
@@ -51,7 +42,7 @@ export default async function ResultsPage() {
         <div className="stat">
           <div className="k">Rata-rata nilai</div>
           <div className="v mono">{average}</div>
-          <div className="d">dari {scored.length} kuis</div>
+          <div className="d">dari {scored.length} kuis dinilai</div>
         </div>
         <div className="stat">
           <div className="k">Kuis lulus</div>
@@ -59,21 +50,23 @@ export default async function ResultsPage() {
             {passed}
             <small> / {total}</small>
           </div>
-          <div className="d">batas lulus 75</div>
+          <div className="d">ambang lulus {thresholdLabel}</div>
         </div>
         <div className="stat">
           <div className="k">Total percobaan</div>
-          <div className="v">{total}</div>
-          <div className="d">semua kuis objektif</div>
+          <div className="v">{totalAttempts}</div>
+          <div className="d">di semua kuis</div>
         </div>
       </div>
 
       <ResultsTable rows={rows} />
 
-      <p className="muted" style={{ fontSize: "12.5px", marginTop: "14px" }}>
-        Semua kuis dinilai otomatis (objektif). Tidak ada esai yang menunggu
-        penilaian.
-      </p>
+      {awaiting > 0 ? (
+        <p className="muted" style={{ fontSize: "12.5px", marginTop: "14px" }}>
+          {awaiting} kuis berisi jawaban esai yang sedang menunggu penilaian
+          pengajar — nilainya akan muncul setelah dinilai.
+        </p>
+      ) : null}
     </AppShell>
   );
 }

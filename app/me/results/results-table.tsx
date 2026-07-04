@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ResultRow } from "@/lib/data";
 
-/** A result row pre-merged with the presentational date/attempt literals. */
-export type ResultTableRow = ResultRow & {
-  date?: string;
-  attempts?: string;
-};
-
 const ALL = "Semua mata kuliah";
+
+const dateFmt = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Jakarta",
+});
 
 function statusBadge(status: ResultRow["status"]) {
   switch (status) {
@@ -18,12 +19,14 @@ function statusBadge(status: ResultRow["status"]) {
       return { className: "badge ok", label: "Lulus", dot: true };
     case "belum-lulus":
       return { className: "badge warn", label: "Belum lulus", dot: true };
+    case "menunggu-penilaian":
+      return { className: "badge info", label: "Menunggu penilaian", dot: true };
     default:
       return { className: "badge", label: "Belum dikerjakan", dot: false };
   }
 }
 
-export function ResultsTable({ rows }: { rows: ResultTableRow[] }) {
+export function ResultsTable({ rows }: { rows: ResultRow[] }) {
   const [course, setCourse] = useState<string>(ALL);
 
   const courses = useMemo(() => {
@@ -101,7 +104,7 @@ export function ResultsTable({ rows }: { rows: ResultTableRow[] }) {
           <tbody>
             {filtered.map((r) => {
               const badge = statusBadge(r.status);
-              const done = r.status !== "belum-dikerjakan" && r.attemptId !== null;
+              const done = r.attemptId !== null;
               const href = done
                 ? `/quiz/${r.quizId}/result/${r.attemptId}`
                 : `/quiz/${r.quizId}`;
@@ -116,8 +119,12 @@ export function ResultsTable({ rows }: { rows: ResultTableRow[] }) {
                     </Link>
                   </td>
                   <td className="muted">{r.courseTitle}</td>
-                  <td className="muted nowrap">{r.date}</td>
-                  <td className="mono">{r.attempts}</td>
+                  <td className="muted nowrap">
+                    {r.date ? dateFmt.format(new Date(r.date)) : "—"}
+                  </td>
+                  <td className="mono">
+                    {r.attemptsUsed}/{r.maxAttempts ?? "∞"}
+                  </td>
                   <td className="mono">{r.score ?? "—"}</td>
                   <td>
                     <span className={badge.className}>

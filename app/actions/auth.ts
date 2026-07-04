@@ -3,7 +3,8 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { hasServiceRole, isSupabaseConfigured } from "@/lib/supabase/env";
 
 export type AuthState = { error?: string; message?: string } | undefined;
 
@@ -46,10 +47,16 @@ export async function login(
   const supabase = await createClient({ persistSession: remember });
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
+    if (/not confirmed/i.test(error.message)) {
+      return {
+        error:
+          "Email kamu belum dikonfirmasi. Cek kotak masuk untuk tautan konfirmasi.",
+      };
+    }
     return { error: "Email atau kata sandi salah." };
   }
 
-  // Route admins to the admin dashboard.
+  // Deactivated / not-yet-approved accounts may not enter.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -57,9 +64,16 @@ export async function login(
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, is_active")
       .eq("id", user.id)
       .single();
+    if (profile && !profile.is_active) {
+      await supabase.auth.signOut();
+      return {
+        error:
+          "Akun kamu belum aktif — menunggu persetujuan admin atau telah dinonaktifkan.",
+      };
+    }
     if (profile?.role === "admin" && !next) dest = "/admin";
   }
   redirect(dest);
@@ -85,16 +99,49 @@ export async function register(
     return { error: "Konfirmasi kata sandi tidak cocok." };
   }
 
+  // Platform settings gate self-registration. app_settings is only readable by
+  // signed-in users, so read with the service client (defaults apply if absent).
+  let allowRegistration = true;
+  let requireApproval = false;
+  if (hasServiceRole) {
+    const admin = createAdminClient();
+    const { data: settings } = await admin
+      .from("app_settings")
+      .select("allow_registration, require_admin_approval")
+      .eq("id", 1)
+      .maybeSingle();
+    if (settings) {
+      allowRegistration = settings.allow_registration;
+      requireApproval = settings.require_admin_approval;
+    }
+  }
+  if (!allowRegistration) {
+    return {
+      error:
+        "Registrasi mandiri sedang ditutup. Hubungi admin untuk dibuatkan akun.",
+    };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${await siteOrigin()}/login`,
+      emailRedirectTo: `${await siteOrigin()}/auth/confirm?next=/login`,
       data: { full_name: fullName, student_no: studentNo || null, role: "student" },
     },
   });
   if (error) return { error: error.message };
+
+  // Approval mode: the handle_new_user trigger creates the profile inactive;
+  // the account can't log in until an admin activates it.
+  if (requireApproval) {
+    if (data.session) await supabase.auth.signOut();
+    return {
+      message:
+        "Akun dibuat dan menunggu persetujuan admin. Kamu akan bisa masuk setelah disetujui.",
+    };
+  }
 
   // If email confirmation is required, there is no session yet.
   if (!data.session) {
@@ -126,7 +173,9 @@ export async function requestPasswordReset(
   if (isSupabaseConfigured) {
     const supabase = await createClient();
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${await siteOrigin()}/reset-password`,
+      // Land on the PKCE callback first — it exchanges the one-time code for a
+      // session, then forwards to the reset form.
+      redirectTo: `${await siteOrigin()}/auth/confirm?next=/reset-password`,
     });
   }
   return {
